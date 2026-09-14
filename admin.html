@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>西松國小 一年三班 班費本</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Iansui&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --board:#2E4D3E;
+    --board-dark:#213A2E;
+    --frame:#8A5A34;
+    --frame-dark:#6E4526;
+    --chalk:#F7F3E3;
+    --chalk-dim:#B9C9BC;
+
+    --paper:#FFFCF3;
+    --paper-card:#FFFFFF;
+    --dot:#EFE0C0;
+
+    --pencil:#3B3024;
+    --pencil-soft:#7A6E58;
+
+    --y:#FFC94D;   /* crayon yellow */
+    --o:#FF8A50;   /* crayon orange */
+    --p:#FF6F91;   /* crayon pink */
+    --b:#4FA8DE;   /* crayon blue */
+    --g:#63BF5B;   /* crayon green */
+    --r:#F2584A;   /* crayon red/coral */
+
+    --y-soft:#FFF2CE;
+    --b-soft:#E3F2FB;
+    --g-soft:#E7F6E3;
+    --r-soft:#FDE6E2;
+
+    --font-display:'Iansui','Klee One', sans-serif;
+    --font-body:'Noto Sans TC', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--font-body);
+    color:var(--pencil);
+    background-color:var(--paper);
+    background-image:radial-gradient(var(--dot) 1.3px, transparent 1.3px);
+    background-size:16px 16px;
+    min-height:100vh;
+    padding-bottom:82px;
+  }
+  a{color:inherit;}
+  button{font-family:inherit;}
+  svg.doodle{display:block;}
+
+  /* ---------- Header：木框黑板 ---------- */
+  header.board{
+    background:
+      radial-gradient(ellipse at 15% -10%, rgba(255,255,255,.05), transparent 40%),
+      linear-gradient(180deg,var(--board) 0%,var(--board-dark) 100%);
+    border:10px solid var(--frame);
+    border-bottom:16px solid var(--frame-dark);
+    border-radius:14px;
+    color:var(--chalk);
+    margin:14px;
+    padding:20px 20px 16px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.board .doodles{position:absolute;inset:0;pointer-events:none;opacity:.55;}
+  header.board .wrap{
+    max-width:900px;
+    margin:0 auto;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+    position:relative;
+  }
+  header.board .school{
+    font-size:13px;
+    letter-spacing:.04em;
+    color:var(--chalk-dim);
+    margin:0 0 6px;
+  }
+  header.board h1{
+    font-family:var(--font-display);
+    font-weight:400;
+    margin:0;
+    font-size:30px;
+    letter-spacing:.02em;
+  }
+  header.board .balance-box{text-align:right;}
+  header.board .balance-label{font-size:12px;color:var(--chalk-dim);margin:0 0 2px;}
+  header.board .balance-value{
+    font-family:var(--font-display);
+    font-size:34px;
+    line-height:1;
+    color:var(--y);
+  }
+  #demoBanner{
+    display:none;
+    max-width:900px;
+    margin:0 14px 14px;
+    background:var(--y-soft);
+    border:2px dashed var(--o);
+    color:#6b4a12;
+    font-size:13px;
+    padding:9px 13px;
+    border-radius:12px;
+  }
+
+  /* ---------- Tabs：彩色蠟筆標籤 ---------- */
+  nav.tabs{
+    max-width:900px;
+    margin:0 14px 18px;
+    display:flex;
+    gap:8px;
+  }
+  nav.tabs button{
+    flex:1;
+    background:var(--paper-card);
+    border:3px solid var(--pencil);
+    border-radius:12px;
+    padding:10px 6px;
+    font-family:var(--font-display);
+    font-size:16px;
+    color:var(--pencil-soft);
+    cursor:pointer;
+    box-shadow:3px 3px 0 var(--pencil);
+    transition:transform .12s;
+  }
+  nav.tabs button:nth-child(1).active{background:var(--y-soft);}
+  nav.tabs button:nth-child(2).active{background:var(--b-soft);}
+  nav.tabs button:nth-child(3).active{background:#FFE3EA;}
+  nav.tabs button:nth-child(4).active{background:var(--g-soft);}
+  nav.tabs button.active{
+    color:var(--pencil);
+    transform:translate(-2px,-2px);
+    box-shadow:5px 5px 0 var(--pencil);
+  }
+
+  main{
+    max-width:900px;
+    margin:0 auto;
+    padding:0 20px 40px;
+  }
+  section.view{display:none;}
+  section.view.active{display:block;}
+
+  h2.section-title{
+    font-family:var(--font-display);
+    font-weight:400;
+    font-size:26px;
+    margin:0 0 16px;
+    color:var(--board);
+  }
+  h2.section-title::before{content:"✦ ";color:var(--y);-webkit-text-stroke:.5px var(--pencil);}
+
+  /* ---------- 卡片通用（手繪厚邊框＋平移陰影） ---------- */
+  .card{
+    background:var(--paper-card);
+    border:3px solid var(--pencil);
+    border-radius:16px;
+    box-shadow:4px 4px 0 rgba(59,48,36,.15);
+  }
+
+  /* ---------- Dashboard ---------- */
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+  .stat{
+    position:relative;
+    border:3px solid var(--pencil);
+    border-radius:16px;
+    padding:16px 14px 12px;
+    background:var(--paper-card);
+    overflow:visible;
+  }
+  .stat:nth-child(1){background:var(--b-soft);transform:rotate(-1deg);}
+  .stat:nth-child(2){background:var(--r-soft);transform:rotate(1deg);}
+  .stat:nth-child(3){background:var(--y-soft);transform:rotate(-1deg);}
+  .stat::before{
+    content:"";
+    position:absolute;
+    top:-11px;left:50%;
+    width:58px;height:20px;
+    transform:translateX(-50%) rotate(-4deg);
+    clip-path:polygon(0% 35%,7% 5%,14% 28%,21% 3%,28% 30%,35% 4%,42% 27%,49% 3%,56% 29%,63% 3%,70% 27%,77% 4%,84% 29%,91% 3%,100% 20%,100% 100%,0% 100%);
+    opacity:.8;
+  }
+  .stat:nth-child(1)::before{background:var(--b);}
+  .stat:nth-child(2)::before{background:var(--r);}
+  .stat:nth-child(3)::before{background:var(--o);}
+  .stat .label{font-family:var(--font-display);font-size:14px;color:var(--pencil-soft);margin:0 0 6px;}
+  .stat .value{font-family:var(--font-display);font-size:26px;margin:0;color:var(--pencil);}
+
+  .progress-block{
+    border:3px solid var(--pencil);
+    border-radius:16px;
+    padding:14px 16px;
+    margin-bottom:20px;
+    background:var(--paper-card);
+  }
+  .progress-block .row{display:flex;justify-content:space-between;font-size:13px;color:var(--pencil-soft);margin-bottom:8px;font-weight:700;}
+  .progress-bar{height:14px;background:var(--r-soft);border:2px solid var(--pencil);border-radius:8px;overflow:hidden;}
+  .progress-bar > div{height:100%;background:var(--g);}
+
+  .recent-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .recent-list{border:3px solid var(--pencil);border-radius:16px;padding:14px;background:var(--paper-card);}
+  .recent-list h3{font-family:var(--font-display);font-weight:400;font-size:17px;margin:0 0 8px;color:var(--board);}
+  .recent-item{
+    display:flex;justify-content:space-between;gap:8px;
+    font-size:13px;padding:7px 0;border-bottom:2px dotted var(--dot);
+  }
+  .recent-item .amt.income{color:var(--b);font-weight:700;}
+  .recent-item .amt.expense{color:var(--r);font-weight:700;}
+
+  /* ---------- Toolbar / Buttons ---------- */
+  .toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .toolbar .summary{font-family:var(--font-display);font-size:16px;color:var(--pencil-soft);}
+  .btn{
+    font-family:var(--font-display);
+    font-size:16px;
+    padding:8px 18px;
+    border:3px solid var(--pencil);
+    background:var(--y);
+    color:var(--pencil);
+    cursor:pointer;
+    border-radius:20px;
+    box-shadow:3px 3px 0 var(--pencil);
+  }
+  .btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--pencil);}
+  .btn.secondary{background:var(--paper-card);}
+  .btn.small{padding:5px 12px;font-size:12px;box-shadow:2px 2px 0 var(--pencil);}
+
+  /* ---------- Table ---------- */
+  table{width:100%;border-collapse:separate;border-spacing:0 6px;font-size:13px;}
+  thead th{
+    text-align:left;
+    font-family:var(--font-display);
+    font-size:15px;
+    color:var(--pencil-soft);
+    padding:4px 10px;
+  }
+  td.num, th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  tbody tr.student-row{
+    background:var(--paper-card);
+    cursor:pointer;
+  }
+  tbody tr.student-row td{
+    padding:10px;
+    border-top:3px solid var(--pencil);
+    border-bottom:3px solid var(--pencil);
+  }
+  tbody tr.student-row td:first-child{border-left:3px solid var(--pencil);border-radius:12px 0 0 12px;}
+  tbody tr.student-row td:last-child{border-right:3px solid var(--pencil);border-radius:0 12px 12px 0;}
+  tbody tr.student-row:hover{background:var(--y-soft);}
+  #reportExpenseTable tr td{padding:8px 10px;border-bottom:1px dotted var(--dot);}
+
+  .tag{
+    display:inline-block;
+    font-family:var(--font-display);
+    font-size:13px;
+    padding:3px 12px;
+    border-radius:20px;
+    border:2px dashed currentColor;
+    transform:rotate(-3deg);
+  }
+  .tag.paid{background:var(--b-soft);color:var(--b);}
+  .tag.unpaid{background:var(--r-soft);color:var(--r);}
+  .tag.partial{background:var(--y-soft);color:#8A6A12;}
+
+  /* ---------- Expense list ---------- */
+  .expense-card{
+    position:relative;
+    display:flex;gap:12px;
+    border:3px solid var(--pencil);
+    border-radius:14px;
+    padding:10px;
+    margin-bottom:16px;
+    margin-top:6px;
+    align-items:center;
+    background:var(--paper-card);
+    overflow:visible;
+  }
+  .expense-card::before{
+    content:"";
+    position:absolute;
+    top:-10px;left:22px;
+    width:46px;height:18px;
+    transform:rotate(-5deg);
+    background:var(--y);
+    opacity:.85;
+    clip-path:polygon(0% 30%,8% 4%,16% 26%,24% 3%,32% 28%,40% 4%,48% 26%,56% 3%,64% 28%,72% 4%,80% 26%,88% 3%,100% 18%,100% 100%,0% 100%);
+  }
+  .expense-card .thumb{
+    width:52px;height:52px;flex:none;
+    background:var(--y-soft);
+    border:2px solid var(--pencil);
+    border-radius:10px;
+    background-size:cover;background-position:center;
+    display:flex;align-items:center;justify-content:center;
+    font-size:10px;color:var(--pencil-soft);text-align:center;
+  }
+  .expense-card .info{flex:1;min-width:0;}
+  .expense-card .info .top{display:flex;justify-content:space-between;gap:8px;}
+  .expense-card .item{font-weight:700;font-size:14px;}
+  .expense-card .meta{font-size:12px;color:var(--pencil-soft);margin-top:2px;}
+  .expense-card .amt{font-family:var(--font-display);color:var(--r);font-size:18px;white-space:nowrap;}
+
+  /* ---------- Report ---------- */
+  .report-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px;}
+  .report-summary .box{border:3px solid var(--pencil);border-radius:16px;padding:14px;text-align:center;background:var(--paper-card);}
+  .report-summary .box:nth-child(1){background:var(--b-soft);}
+  .report-summary .box:nth-child(2){background:var(--r-soft);}
+  .report-summary .box:nth-child(3){background:var(--y-soft);}
+  .report-summary .box .label{font-size:12px;color:var(--pencil-soft);font-weight:700;}
+  .report-summary .box .value{font-family:var(--font-display);font-size:26px;margin-top:4px;}
+  .cat-row{display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:9px;}
+  .cat-row .cat-name{width:90px;flex:none;color:var(--pencil-soft);font-weight:700;}
+  .cat-row .cat-bar{flex:1;height:10px;background:var(--dot);border-radius:6px;overflow:hidden;}
+  .cat-row .cat-bar div{height:100%;background:var(--o);}
+  .cat-row .cat-amt{width:70px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;}
+  .unpaid-note{
+    border:3px dashed var(--r);
+    background:var(--r-soft);
+    border-radius:14px;
+    padding:12px 14px;
+    font-size:13px;
+    margin-top:20px;
+  }
+
+  h3.subhead{font-family:var(--font-display);font-weight:400;font-size:20px;color:var(--board);margin-bottom:10px;}
+  h3.subhead::before{content:"✎ ";color:var(--o);}
+  .recent-list h3::before{content:"✎ ";color:var(--o);}
+
+  /* 保險：若 Iansui 因網路限制未能載入，靠加粗維持手感，不會退回死板字體 */
+  header.board h1, h2.section-title, h3.subhead, .recent-list h3,
+  .btn, .tag, nav.tabs button, thead th, .toolbar .summary,
+  header.board .balance-value, .stat .label, .stat .value, .modal-head{
+    font-weight:700;
+  }
+
+  /* ---------- Bottom nav (mobile) ---------- */
+  nav.bottombar{display:none;}
+
+  /* ---------- Modal ---------- */
+  dialog{
+    border:4px solid var(--pencil);
+    border-radius:18px;
+    padding:0;
+    width:min(440px,92vw);
+    background:var(--paper);
+    box-shadow:6px 6px 0 rgba(59,48,36,.25);
+  }
+  dialog::backdrop{background:rgba(20,20,15,.5);}
+  .modal-head{
+    background:var(--board);color:var(--chalk);
+    padding:14px 18px;font-family:var(--font-display);font-weight:400;font-size:19px;
+    display:flex;justify-content:space-between;align-items:center;
+    border-radius:14px 14px 0 0;
+  }
+  .modal-head button{background:none;border:none;color:var(--chalk);font-size:18px;cursor:pointer;}
+  .modal-body{padding:16px 18px 20px;}
+  .field{margin-bottom:13px;}
+  .field label{display:block;font-size:12px;color:var(--pencil-soft);margin-bottom:4px;font-weight:700;}
+  .field input, .field select, .field textarea{
+    width:100%;padding:9px 10px;border:2px solid var(--pencil);
+    background:#fff;font-family:inherit;font-size:14px;border-radius:10px;
+  }
+  .field-row{display:flex;gap:10px;}
+  .field-row > .field{flex:1;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:6px;}
+  .photo-preview{
+    margin-top:8px;width:100%;max-height:160px;object-fit:contain;
+    border:2px dashed var(--pencil-soft);border-radius:10px;display:none;background:#fff;
+  }
+
+  @media print{
+    header.board .doodles, nav.tabs, nav.bottombar, #demoBanner, .no-print{display:none !important;}
+    section.view{display:none !important;}
+    section.view#report-view{display:block !important;}
+    body{background:#fff;padding:0;}
+    main{padding:0;max-width:none;}
+    header.board{margin:0;border-radius:0;}
+  }
+
+  @media (max-width:680px){
+    header.board h1{font-size:24px;}
+    header.board .balance-value{font-size:26px;}
+    nav.tabs{display:none;}
+    nav.bottombar{
+      display:flex;position:fixed;bottom:0;left:0;right:0;
+      background:var(--board);border-top:6px solid var(--frame);
+      z-index:20;
+    }
+    nav.bottombar button{
+      flex:1;background:none;border:none;color:var(--chalk-dim);
+      padding:9px 2px 8px;font-size:11px;font-weight:700;display:flex;flex-direction:column;
+      align-items:center;gap:3px;cursor:pointer;
+    }
+    nav.bottombar button .ico{font-size:18px;}
+    nav.bottombar button.active{color:var(--y);}
+    .grid-3{grid-template-columns:1fr;}
+    .recent-cols{grid-template-columns:1fr;}
+    .report-summary{grid-template-columns:1fr;}
+    .stat{transform:none !important;}
+    thead{display:none;}
+    table{border-spacing:0;}
+    table, tbody, tr, td{display:block;width:100%;}
+    tbody tr.student-row{
+      border:3px solid var(--pencil) !important;border-radius:14px !important;
+      margin-bottom:10px;padding:8px 12px;
+    }
+    tbody tr.student-row td{
+      border:none !important;border-radius:0 !important;padding:3px 0;display:flex;justify-content:space-between;
+    }
+    tbody tr.student-row td.num{text-align:right;}
+    tbody tr.student-row td:before{content:attr(data-label);color:var(--pencil-soft);font-size:12px;font-weight:700;}
+  }
+</style>
+</head>
+<body>
+
+<div id="lockScreen" style="position:fixed;inset:0;background:var(--board);z-index:999;display:flex;align-items:center;justify-content:center;">
+  <div class="card" style="background:var(--paper-card);padding:26px 24px;width:min(320px,86vw);text-align:center;">
+    <p style="font-family:var(--font-display);font-size:20px;margin:0 0 4px;">🔒 班費本後台</p>
+    <p style="font-size:12px;color:var(--pencil-soft);margin:0 0 14px;">此頁面僅供財務代表使用</p>
+    <input type="password" id="adminPasswordInput" placeholder="請輸入後台密碼" style="width:100%;padding:9px 10px;border:2px solid var(--pencil);border-radius:10px;font-size:14px;margin-bottom:10px;">
+    <button class="btn" id="adminUnlockBtn" style="width:100%;">進入後台</button>
+    <p id="adminUnlockError" style="color:var(--r);font-size:12px;margin:10px 0 0;display:none;">密碼不正確，請再試一次</p>
+  </div>
+</div>
+
+<header class="board">
+  <svg class="doodles" viewBox="0 0 400 160" preserveAspectRatio="none">
+    <path d="M20 30 l4 -10 4 10 10 2 -8 7 3 11 -9 -6 -9 6 3 -11 -8 -7 z" fill="none" stroke="#F7F3E3" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M350 26 l3 -8 3 8 8 2 -6 6 2 9 -7 -5 -7 5 2 -9 -6 -6 z" fill="none" stroke="#FFC94D" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M370 100 q8 -10 16 0 q-8 6 -16 0" fill="none" stroke="#F7F3E3" stroke-width="1.4"/>
+    <circle cx="60" cy="120" r="1.6" fill="#F7F3E3"/>
+    <circle cx="72" cy="126" r="1.2" fill="#F7F3E3"/>
+    <circle cx="52" cy="130" r="1" fill="#F7F3E3"/>
+  </svg>
+  <div class="wrap">
+    <div class="title">
+      <p class="school">西松國小・家長會財務</p>
+      <h1 id="className">一年三班 班費本 ✏️</h1>
+    </div>
+    <div class="balance-box">
+      <p class="balance-label">目前結餘</p>
+      <p class="balance-value" id="headerBalance">$0</p>
+    </div>
+  </div>
+</header>
+<div id="demoBanner">預覽模式：目前顯示示範資料，尚未連接 Firebase。請見檔案內 firebaseConfig 註解完成設定。</div>
+
+<nav class="tabs">
+  <button data-view="dashboard-view" class="active">🏠 總覽</button>
+  <button data-view="students-view">🧾 收費管理</button>
+  <button data-view="expense-view">🖍️ 記帳</button>
+  <button data-view="report-view">📋 期末報告</button>
+</nav>
+
+<main>
+
+  <!-- ============ 總覽 ============ -->
+  <section class="view active" id="dashboard-view">
+    <h2 class="section-title">本學期總覽</h2>
+    <div class="grid-3">
+      <div class="stat income"><p class="label">已收班費</p><p class="value" id="statIncome">$0</p></div>
+      <div class="stat expense"><p class="label">已支出</p><p class="value" id="statExpense">$0</p></div>
+      <div class="stat"><p class="label">結餘</p><p class="value" id="statBalance">$0</p></div>
+    </div>
+
+    <div class="progress-block">
+      <div class="row"><span id="progressText">0 / 0 位家長已繳費</span><span id="progressPct">0%</span></div>
+      <div class="progress-bar"><div id="progressFill" style="width:0%"></div></div>
+    </div>
+
+    <div class="recent-cols">
+      <div class="recent-list">
+        <h3>最近繳費</h3>
+        <div id="recentPayments"></div>
+      </div>
+      <div class="recent-list">
+        <h3>最近支出</h3>
+        <div id="recentExpenses"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 收費管理 ============ -->
+  <section class="view" id="students-view">
+    <h2 class="section-title">收費管理</h2>
+    <div class="progress-block" style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+      <div>
+        <p style="margin:0 0 4px;font-family:var(--font-display);font-size:15px;color:var(--pencil-soft);">本次應繳金額（前台會顯示這個數字）</p>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="number" id="dueAmountInput" style="width:110px;padding:7px 9px;border:2px solid var(--pencil);border-radius:10px;font-size:15px;">
+          <button class="btn small" id="saveDueAmountBtn">儲存</button>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--pencil-soft);">前台網址：<code id="frontUrlHint">index.html</code>（部署後改成正式網址）</div>
+    </div>
+    <div class="toolbar">
+      <span class="summary" id="studentSummary">共 0 位學生</span>
+      <button class="btn" id="addStudentBtn">＋ 新增學生</button>
+    </div>
+    <table>
+      <thead>
+        <tr><th>座號</th><th>姓名</th><th>性別</th><th class="num">應繳</th><th class="num">已繳</th><th>繳費日期</th><th>狀態</th></tr>
+      </thead>
+      <tbody id="studentTableBody"></tbody>
+    </table>
+  </section>
+
+  <!-- ============ 記帳 ============ -->
+  <section class="view" id="expense-view">
+    <h2 class="section-title">記帳（支出與發票）</h2>
+    <div class="toolbar">
+      <span class="summary" id="expenseSummary">共 0 筆支出</span>
+      <button class="btn" id="addExpenseBtn">＋ 新增支出</button>
+    </div>
+    <div id="expenseList"></div>
+  </section>
+
+  <!-- ============ 期末報告 ============ -->
+  <section class="view" id="report-view">
+    <h2 class="section-title">期末班費報告 — <span id="reportClassName">一年三班</span></h2>
+    <div class="report-summary">
+      <div class="box"><p class="label">總收入</p><p class="value" id="reportIncome">$0</p></div>
+      <div class="box"><p class="label">總支出</p><p class="value" id="reportExpense">$0</p></div>
+      <div class="box"><p class="label">期末結餘</p><p class="value" id="reportBalance">$0</p></div>
+    </div>
+
+    <h3 class="subhead">支出分類</h3>
+    <div id="categoryBreakdown"></div>
+
+    <h3 class="subhead" style="margin-top:20px;">支出明細</h3>
+    <table>
+      <thead><tr><th>日期</th><th>項目</th><th>類別</th><th class="num">金額</th></tr></thead>
+      <tbody id="reportExpenseTable"></tbody>
+    </table>
+
+    <div id="unpaidNote" class="unpaid-note" style="display:none;"></div>
+
+    <div class="no-print" style="margin-top:22px;">
+      <button class="btn" id="printReportBtn">🖨️ 列印 / 輸出 PDF</button>
+    </div>
+  </section>
+
+</main>
+
+<nav class="bottombar">
+  <button data-view="dashboard-view" class="active"><span class="ico">🏠</span>總覽</button>
+  <button data-view="students-view"><span class="ico">🧾</span>收費</button>
+  <button data-view="expense-view"><span class="ico">🖍️</span>記帳</button>
+  <button data-view="report-view"><span class="ico">📋</span>報告</button>
+</nav>
+
+<!-- ============ 學生 Modal ============ -->
+<dialog id="studentDialog">
+  <div class="modal-head"><span id="studentDialogTitle">新增學生</span><button data-close>✕</button></div>
+  <div class="modal-body">
+    <div class="field-row">
+      <div class="field"><label>座號</label><input type="number" id="f_seat"></div>
+      <div class="field" style="flex:2;"><label>姓名</label><input type="text" id="f_name"></div>
+    </div>
+    <div class="field">
+      <label>性別（僅後台使用，前台只顯示座號與顏色）</label>
+      <select id="f_gender">
+        <option value="M">男生</option>
+        <option value="F">女生</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>應繳金額</label><input type="number" id="f_due" value="500"></div>
+      <div class="field"><label>已繳金額</label><input type="number" id="f_paid" value="0"></div>
+    </div>
+    <div class="field"><label>繳費日期</label><input type="date" id="f_paidDate"></div>
+    <div class="field"><label>備註</label><input type="text" id="f_note" placeholder="選填"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" data-close>取消</button>
+      <button class="btn" id="saveStudentBtn">儲存</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ============ 支出 Modal ============ -->
+<dialog id="expenseDialog">
+  <div class="modal-head"><span>新增支出</span><button data-close>✕</button></div>
+  <div class="modal-body">
+    <div class="field"><label>項目名稱</label><input type="text" id="e_item" placeholder="例：園遊會材料"></div>
+    <div class="field-row">
+      <div class="field"><label>金額</label><input type="number" id="e_amount"></div>
+      <div class="field"><label>日期</label><input type="date" id="e_date"></div>
+    </div>
+    <div class="field">
+      <label>類別</label>
+      <select id="e_category">
+        <option>教學用品</option>
+        <option>班級活動</option>
+        <option>獎勵品</option>
+        <option>文具耗材</option>
+        <option>其他</option>
+      </select>
+    </div>
+    <div class="field"><label>備註</label><input type="text" id="e_note" placeholder="選填"></div>
+    <div class="field">
+      <label>發票 / 收據照片</label>
+      <input type="file" id="e_photo" accept="image/*" capture="environment">
+      <img id="e_photoPreview" class="photo-preview">
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" data-close>取消</button>
+      <button class="btn" id="saveExpenseBtn">儲存</button>
+    </div>
+  </div>
+</dialog>
+
+<script type="module">
+/* ======================================================================
+   簡易密碼保護
+   這只是「不要讓不相關的人一打開網址就看到全班姓名」的基本防護，
+   密碼是寫在網頁原始碼裡，並不是真正安全的登入機制。
+   若要更安全，建議之後改接 Firebase Authentication（帳號密碼登入），
+   並在 Firestore 安全規則中限制只有登入者能寫入資料。
+   ====================================================================== */
+const ADMIN_PASSWORD = "yl1-3ban"; // ← 請改成你自己的密碼
+
+function checkUnlock(){
+  const ok = sessionStorage.getItem("classFundUnlocked") === "1";
+  document.getElementById("lockScreen").style.display = ok ? "none" : "flex";
+  return ok;
+}
+document.getElementById("adminUnlockBtn").addEventListener("click", tryUnlock);
+document.getElementById("adminPasswordInput").addEventListener("keydown", (e)=>{ if(e.key==="Enter") tryUnlock(); });
+function tryUnlock(){
+  const val = document.getElementById("adminPasswordInput").value;
+  if(val === ADMIN_PASSWORD){
+    sessionStorage.setItem("classFundUnlocked","1");
+    document.getElementById("lockScreen").style.display = "none";
+  }else{
+    document.getElementById("adminUnlockError").style.display = "block";
+  }
+}
+checkUnlock();
+
+/* ======================================================================
+   Firebase 設定區
+   請將下方 firebaseConfig 換成你自己的 Firebase 專案設定（Firebase 主控台
+   → 專案設定 → 一般 → 你的應用程式）。填入正確設定後，重新整理頁面，
+   系統會自動改為讀寫 Firestore／Storage，畫面上方的「預覽模式」提示會消失。
+   ====================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyArles224lKYRWRBEr-cVlUfvNR32huk-Q",
+  authDomain: "classfund103.firebaseapp.com",
+  projectId: "classfund103",
+  storageBucket: "classfund103.firebasestorage.app",
+  messagingSenderId: "785189142403",
+  appId: "1:785189142403:web:82eb7c95179eeb433c40b6"
+};
+
+let firebaseReady = false;
+let db, storageRef, fsApi, stApi;
+
+async function tryInitFirebase(){
+  if(firebaseConfig.apiKey.startsWith("YOUR_")) return false;
+  try{
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+    const firestore = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+    const storage = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js");
+    const app = initializeApp(firebaseConfig);
+    db = firestore.getFirestore(app);
+    fsApi = firestore;
+    stApi = storage;
+    storageRef = storage.getStorage(app);
+    return true;
+  }catch(e){
+    console.warn("Firebase 初始化失敗，改用示範資料：", e);
+    return false;
+  }
+}
+
+/* ======================================================================
+   示範資料（預覽模式使用；接上 Firebase 後會改由 Firestore 讀寫）
+   ====================================================================== */
+const DEMO_STUDENTS = [
+  {id:"s1", seat:1, name:"座號1 王小明", gender:"M", due:500, paid:500, paidDate:"2026-09-02", note:""},
+  {id:"s2", seat:2, name:"座號2 陳小美", gender:"F", due:500, paid:500, paidDate:"2026-09-03", note:""},
+  {id:"s3", seat:3, name:"座號3 林小華", gender:"M", due:500, paid:0,   paidDate:"", note:""},
+  {id:"s4", seat:4, name:"座號4 張小芸", gender:"F", due:500, paid:300, paidDate:"2026-09-05", note:"分兩次繳"},
+  {id:"s5", seat:5, name:"座號5 李小傑", gender:"M", due:500, paid:500, paidDate:"2026-09-02", note:""},
+  {id:"s6", seat:6, name:"座號6 黃小婷", gender:"F", due:500, paid:500, paidDate:"2026-09-04", note:""},
+  {id:"s7", seat:7, name:"座號7 吳小豪", gender:"M", due:500, paid:0,   paidDate:"", note:""},
+];
+
+const DEMO_EXPENSES = [
+  {id:"e1", date:"2026-09-10", item:"美勞課材料（色紙、膠水）", category:"教學用品", amount:680, note:"", photo:null},
+  {id:"e2", date:"2026-09-15", item:"生日慶生小禮物", category:"獎勵品", amount:450, note:"9月壽星共3人", photo:null},
+  {id:"e3", date:"2026-09-20", item:"班級圖書角新書", category:"教學用品", amount:920, note:"", photo:null},
+  {id:"e4", date:"2026-10-02", item:"園遊會攤位材料", category:"班級活動", amount:1250, note:"", photo:null},
+];
+
+let state = {
+  settings: { dueAmount: 500 },
+  students: JSON.parse(JSON.stringify(DEMO_STUDENTS)),
+  expenses: JSON.parse(JSON.stringify(DEMO_EXPENSES)),
+};
+
+const money = n => "$" + Number(n||0).toLocaleString("zh-TW");
+
+/* ---------- 畫面切換 ---------- */
+function switchView(viewId){
+  document.querySelectorAll("section.view").forEach(s=>s.classList.toggle("active", s.id===viewId));
+  document.querySelectorAll("nav.tabs button, nav.bottombar button").forEach(b=>{
+    b.classList.toggle("active", b.dataset.view===viewId);
+  });
+  if(viewId==="report-view") renderReport();
+}
+document.querySelectorAll("nav.tabs button, nav.bottombar button").forEach(b=>{
+  b.addEventListener("click", ()=>switchView(b.dataset.view));
+});
+
+/* ---------- 總覽 ---------- */
+function renderDashboard(){
+  const totalIncome = state.students.reduce((s,x)=>s+Number(x.paid||0),0);
+  const totalExpense = state.expenses.reduce((s,x)=>s+Number(x.amount||0),0);
+  const balance = totalIncome - totalExpense;
+
+  document.getElementById("headerBalance").textContent = money(balance);
+  document.getElementById("statIncome").textContent = money(totalIncome);
+  document.getElementById("statExpense").textContent = money(totalExpense);
+  document.getElementById("statBalance").textContent = money(balance);
+
+  const paidCount = state.students.filter(s=>Number(s.paid)>=Number(s.due) && Number(s.due)>0).length;
+  const total = state.students.length;
+  const pct = total? Math.round(paidCount/total*100):0;
+  document.getElementById("progressText").textContent = `${paidCount} / ${total} 位家長已繳清`;
+  document.getElementById("progressPct").textContent = pct+"%";
+  document.getElementById("progressFill").style.width = pct+"%";
+
+  const recentPayments = [...state.students]
+    .filter(s=>s.paidDate)
+    .sort((a,b)=> (b.paidDate||"").localeCompare(a.paidDate||""))
+    .slice(0,5);
+  document.getElementById("recentPayments").innerHTML = recentPayments.map(s=>`
+    <div class="recent-item"><span>${s.name}</span><span class="amt income">${money(s.paid)}</span></div>
+  `).join("") || `<p style="font-size:13px;color:var(--pencil-soft);">尚無資料</p>`;
+
+  const recentExpenses = [...state.expenses]
+    .sort((a,b)=> (b.date||"").localeCompare(a.date||""))
+    .slice(0,5);
+  document.getElementById("recentExpenses").innerHTML = recentExpenses.map(e=>`
+    <div class="recent-item"><span>${e.item}</span><span class="amt expense">-${money(e.amount)}</span></div>
+  `).join("") || `<p style="font-size:13px;color:var(--pencil-soft);">尚無資料</p>`;
+}
+
+/* ---------- 收費管理 ---------- */
+function statusOf(s){
+  if(Number(s.paid) >= Number(s.due) && Number(s.due)>0) return {cls:"paid", label:"已繳"};
+  if(Number(s.paid) > 0) return {cls:"partial", label:"部分"};
+  return {cls:"unpaid", label:"未繳"};
+}
+function renderStudents(){
+  const tbody = document.getElementById("studentTableBody");
+  const sorted = [...state.students].sort((a,b)=>a.seat-b.seat);
+  tbody.innerHTML = sorted.map(s=>{
+    const st = statusOf(s);
+    const genderDot = s.gender==="F" ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--p);margin-right:5px;"></span>女` : `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--b);margin-right:5px;"></span>男`;
+    return `
+    <tr class="student-row" data-id="${s.id}">
+      <td data-label="座號">${s.seat}</td>
+      <td data-label="姓名">${s.name}</td>
+      <td data-label="性別">${genderDot}</td>
+      <td data-label="應繳" class="num">${money(s.due)}</td>
+      <td data-label="已繳" class="num">${money(s.paid)}</td>
+      <td data-label="繳費日期">${s.paidDate||"—"}</td>
+      <td data-label="狀態"><span class="tag ${st.cls}">${st.label}</span></td>
+    </tr>`;
+  }).join("");
+  document.getElementById("studentSummary").textContent = `共 ${state.students.length} 位學生`;
+  tbody.querySelectorAll("tr").forEach(tr=>{
+    tr.addEventListener("click", ()=>openStudentDialog(tr.dataset.id));
+  });
+}
+
+let editingStudentId = null;
+function openStudentDialog(id){
+  editingStudentId = id || null;
+  const dlg = document.getElementById("studentDialog");
+  const s = id ? state.students.find(x=>x.id===id) : null;
+  document.getElementById("studentDialogTitle").textContent = s? "編輯學生" : "新增學生";
+  document.getElementById("f_seat").value = s? s.seat : (state.students.length+1);
+  document.getElementById("f_name").value = s? s.name : "";
+  document.getElementById("f_gender").value = s? (s.gender||"M") : "M";
+  document.getElementById("f_due").value = s? s.due : state.settings.dueAmount;
+  document.getElementById("f_paid").value = s? s.paid : 0;
+  document.getElementById("f_paidDate").value = s? s.paidDate : "";
+  document.getElementById("f_note").value = s? s.note : "";
+  dlg.showModal();
+}
+document.getElementById("addStudentBtn").addEventListener("click", ()=>openStudentDialog(null));
+document.getElementById("saveStudentBtn").addEventListener("click", async ()=>{
+  const data = {
+    seat: Number(document.getElementById("f_seat").value||0),
+    name: document.getElementById("f_name").value.trim(),
+    gender: document.getElementById("f_gender").value,
+    due: Number(document.getElementById("f_due").value||0),
+    paid: Number(document.getElementById("f_paid").value||0),
+    paidDate: document.getElementById("f_paidDate").value,
+    note: document.getElementById("f_note").value.trim(),
+  };
+  if(!data.name){ alert("請輸入姓名"); return; }
+
+  if(firebaseReady){
+    const col = fsApi.collection(db, "students");
+    if(editingStudentId){ await fsApi.updateDoc(fsApi.doc(db,"students",editingStudentId), data); }
+    else{ await fsApi.addDoc(col, data); }
+  }else{
+    if(editingStudentId){
+      Object.assign(state.students.find(x=>x.id===editingStudentId), data);
+    }else{
+      state.students.push({id:"s"+Date.now(), ...data});
+    }
+    renderDashboard(); renderStudents();
+  }
+  document.getElementById("studentDialog").close();
+});
+
+/* ---------- 記帳 ---------- */
+function renderExpenses(){
+  const list = document.getElementById("expenseList");
+  const sorted = [...state.expenses].sort((a,b)=> (b.date||"").localeCompare(a.date||""));
+  list.innerHTML = sorted.map(e=>`
+    <div class="expense-card">
+      <div class="thumb" style="${e.photo? `background-image:url(${e.photo})`:""}">${e.photo? "":"無照片"}</div>
+      <div class="info">
+        <div class="top"><span class="item">${e.item}</span><span class="amt">-${money(e.amount)}</span></div>
+        <div class="meta">${e.date}・${e.category}${e.note? "・"+e.note:""}</div>
+      </div>
+    </div>
+  `).join("") || `<p style="font-size:13px;color:var(--pencil-soft);">尚無支出紀錄</p>`;
+  document.getElementById("expenseSummary").textContent = `共 ${state.expenses.length} 筆支出`;
+}
+
+document.getElementById("addExpenseBtn").addEventListener("click", ()=>{
+  document.getElementById("e_item").value = "";
+  document.getElementById("e_amount").value = "";
+  document.getElementById("e_date").value = new Date().toISOString().slice(0,10);
+  document.getElementById("e_category").value = "教學用品";
+  document.getElementById("e_note").value = "";
+  document.getElementById("e_photo").value = "";
+  const prev = document.getElementById("e_photoPreview");
+  prev.style.display = "none"; prev.src = "";
+  document.getElementById("expenseDialog").showModal();
+});
+
+document.getElementById("e_photo").addEventListener("change", (ev)=>{
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    const prev = document.getElementById("e_photoPreview");
+    prev.src = reader.result; prev.style.display = "block";
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById("saveExpenseBtn").addEventListener("click", async ()=>{
+  const item = document.getElementById("e_item").value.trim();
+  const amount = Number(document.getElementById("e_amount").value||0);
+  if(!item || !amount){ alert("請輸入項目名稱與金額"); return; }
+  const photoPreview = document.getElementById("e_photoPreview");
+  const data = {
+    item, amount,
+    date: document.getElementById("e_date").value,
+    category: document.getElementById("e_category").value,
+    note: document.getElementById("e_note").value.trim(),
+    photo: photoPreview.style.display==="block" ? photoPreview.src : null,
+  };
+
+  if(firebaseReady){
+    const file = document.getElementById("e_photo").files[0];
+    let photoURL = null;
+    if(file){
+      const r = stApi.ref(storageRef, `receipts/${Date.now()}_${file.name}`);
+      await stApi.uploadBytes(r, file);
+      photoURL = await stApi.getDownloadURL(r);
+    }
+    await fsApi.addDoc(fsApi.collection(db,"expenses"), {...data, photo: photoURL});
+  }else{
+    state.expenses.push({id:"e"+Date.now(), ...data});
+    renderDashboard(); renderExpenses();
+  }
+  document.getElementById("expenseDialog").close();
+});
+
+/* ---------- 期末報告 ---------- */
+function renderReport(){
+  const totalIncome = state.students.reduce((s,x)=>s+Number(x.paid||0),0);
+  const totalExpense = state.expenses.reduce((s,x)=>s+Number(x.amount||0),0);
+  document.getElementById("reportIncome").textContent = money(totalIncome);
+  document.getElementById("reportExpense").textContent = money(totalExpense);
+  document.getElementById("reportBalance").textContent = money(totalIncome-totalExpense);
+
+  const byCat = {};
+  state.expenses.forEach(e=>{ byCat[e.category] = (byCat[e.category]||0) + Number(e.amount||0); });
+  const maxCat = Math.max(1, ...Object.values(byCat));
+  document.getElementById("categoryBreakdown").innerHTML = Object.entries(byCat).map(([cat,amt])=>`
+    <div class="cat-row">
+      <span class="cat-name">${cat}</span>
+      <span class="cat-bar"><div style="width:${(amt/maxCat*100)}%"></div></span>
+      <span class="cat-amt">${money(amt)}</span>
+    </div>
+  `).join("") || `<p style="font-size:13px;color:var(--pencil-soft);">尚無支出資料</p>`;
+
+  const sorted = [...state.expenses].sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+  document.getElementById("reportExpenseTable").innerHTML = sorted.map(e=>`
+    <tr><td>${e.date}</td><td>${e.item}</td><td>${e.category}</td><td class="num">${money(e.amount)}</td></tr>
+  `).join("");
+
+  const unpaid = state.students.filter(s=> Number(s.paid) < Number(s.due));
+  const note = document.getElementById("unpaidNote");
+  if(unpaid.length){
+    note.style.display = "block";
+    note.innerHTML = `尚未繳清班費：${unpaid.map(s=>`${s.name}（已繳 ${money(s.paid)} / 應繳 ${money(s.due)}）`).join("、")}`;
+  }else{
+    note.style.display = "none";
+  }
+}
+document.getElementById("printReportBtn").addEventListener("click", ()=>window.print());
+
+document.getElementById("saveDueAmountBtn").addEventListener("click", async ()=>{
+  const val = Number(document.getElementById("dueAmountInput").value||0);
+  state.settings.dueAmount = val;
+  if(firebaseReady){
+    await fsApi.setDoc(fsApi.doc(db,"settings","current"), state.settings, {merge:true});
+  }
+  alert("已更新本次應繳金額，前台會同步顯示這個數字。");
+});
+
+/* ---------- Modal 關閉 ---------- */
+document.querySelectorAll("dialog [data-close]").forEach(b=>{
+  b.addEventListener("click", ()=>b.closest("dialog").close());
+});
+
+/* ---------- 啟動 ---------- */
+(async function init(){
+  firebaseReady = await tryInitFirebase();
+  document.getElementById("demoBanner").style.display = firebaseReady? "none":"block";
+  if(firebaseReady){ state.students = []; state.expenses = []; }
+
+  if(firebaseReady){
+    fsApi.onSnapshot(fsApi.doc(db,"settings","current"), snap=>{
+      if(snap.exists()){ state.settings = {...state.settings, ...snap.data()}; }
+      document.getElementById("dueAmountInput").value = state.settings.dueAmount;
+      renderDashboard();
+    });
+    fsApi.onSnapshot(fsApi.collection(db,"students"), snap=>{
+      state.students = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      renderDashboard(); renderStudents();
+    });
+    fsApi.onSnapshot(fsApi.collection(db,"expenses"), snap=>{
+      state.expenses = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      renderDashboard(); renderExpenses();
+    });
+  }
+
+  document.getElementById("dueAmountInput").value = state.settings.dueAmount;
+  renderDashboard();
+  renderStudents();
+  renderExpenses();
+})();
+</script>
+</body>
+</html>

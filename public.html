@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>西松國小 一年三班 班費本｜家長查詢</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Iansui&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --board:#2E4D3E;
+    --board-dark:#213A2E;
+    --frame:#8A5A34;
+    --frame-dark:#6E4526;
+    --chalk:#F7F3E3;
+    --chalk-dim:#B9C9BC;
+
+    --paper:#FFFCF3;
+    --paper-card:#FFFFFF;
+    --dot:#EFE0C0;
+
+    --pencil:#3B3024;
+    --pencil-soft:#7A6E58;
+
+    --y:#FFC94D;   /* crayon yellow */
+    --o:#FF8A50;   /* crayon orange */
+    --p:#FF6F91;   /* crayon pink */
+    --b:#4FA8DE;   /* crayon blue */
+    --g:#63BF5B;   /* crayon green */
+    --r:#F2584A;   /* crayon red/coral */
+
+    --y-soft:#FFF2CE;
+    --b-soft:#E3F2FB;
+    --g-soft:#E7F6E3;
+    --r-soft:#FDE6E2;
+
+    --font-display:'Iansui','Klee One', sans-serif;
+    --font-body:'Noto Sans TC', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--font-body);
+    color:var(--pencil);
+    background-color:var(--paper);
+    background-image:radial-gradient(var(--dot) 1.3px, transparent 1.3px);
+    background-size:16px 16px;
+    min-height:100vh;
+    padding-bottom:82px;
+  }
+  a{color:inherit;}
+  button{font-family:inherit;}
+  svg.doodle{display:block;}
+
+  /* ---------- Header：木框黑板 ---------- */
+  header.board{
+    background:
+      radial-gradient(ellipse at 15% -10%, rgba(255,255,255,.05), transparent 40%),
+      linear-gradient(180deg,var(--board) 0%,var(--board-dark) 100%);
+    border:10px solid var(--frame);
+    border-bottom:16px solid var(--frame-dark);
+    border-radius:14px;
+    color:var(--chalk);
+    margin:14px;
+    padding:20px 20px 16px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.board .doodles{position:absolute;inset:0;pointer-events:none;opacity:.55;}
+  header.board .wrap{
+    max-width:900px;
+    margin:0 auto;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+    position:relative;
+  }
+  header.board .school{
+    font-size:13px;
+    letter-spacing:.04em;
+    color:var(--chalk-dim);
+    margin:0 0 6px;
+  }
+  header.board h1{
+    font-family:var(--font-display);
+    font-weight:400;
+    margin:0;
+    font-size:30px;
+    letter-spacing:.02em;
+  }
+  header.board .balance-box{text-align:right;}
+  header.board .balance-label{font-size:12px;color:var(--chalk-dim);margin:0 0 2px;}
+  header.board .balance-value{
+    font-family:var(--font-display);
+    font-size:34px;
+    line-height:1;
+    color:var(--y);
+  }
+  #demoBanner{
+    display:none;
+    max-width:900px;
+    margin:0 14px 14px;
+    background:var(--y-soft);
+    border:2px dashed var(--o);
+    color:#6b4a12;
+    font-size:13px;
+    padding:9px 13px;
+    border-radius:12px;
+  }
+
+  /* ---------- Tabs：彩色蠟筆標籤 ---------- */
+  nav.tabs{
+    max-width:900px;
+    margin:0 14px 18px;
+    display:flex;
+    gap:8px;
+  }
+  nav.tabs button{
+    flex:1;
+    background:var(--paper-card);
+    border:3px solid var(--pencil);
+    border-radius:12px;
+    padding:10px 6px;
+    font-family:var(--font-display);
+    font-size:16px;
+    color:var(--pencil-soft);
+    cursor:pointer;
+    box-shadow:3px 3px 0 var(--pencil);
+    transition:transform .12s;
+  }
+  nav.tabs button:nth-child(1).active{background:var(--y-soft);}
+  nav.tabs button:nth-child(2).active{background:var(--b-soft);}
+  nav.tabs button:nth-child(3).active{background:#FFE3EA;}
+  nav.tabs button:nth-child(4).active{background:var(--g-soft);}
+  nav.tabs button.active{
+    color:var(--pencil);
+    transform:translate(-2px,-2px);
+    box-shadow:5px 5px 0 var(--pencil);
+  }
+
+  main{
+    max-width:900px;
+    margin:0 auto;
+    padding:0 20px 40px;
+  }
+  section.view{display:none;}
+  section.view.active{display:block;}
+
+  h2.section-title{
+    font-family:var(--font-display);
+    font-weight:400;
+    font-size:26px;
+    margin:0 0 16px;
+    color:var(--board);
+  }
+  h2.section-title::before{content:"✦ ";color:var(--y);-webkit-text-stroke:.5px var(--pencil);}
+
+  /* ---------- 卡片通用（手繪厚邊框＋平移陰影） ---------- */
+  .card{
+    background:var(--paper-card);
+    border:3px solid var(--pencil);
+    border-radius:16px;
+    box-shadow:4px 4px 0 rgba(59,48,36,.15);
+  }
+
+  /* ---------- Dashboard ---------- */
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+  .stat{
+    position:relative;
+    border:3px solid var(--pencil);
+    border-radius:16px;
+    padding:16px 14px 12px;
+    background:var(--paper-card);
+    overflow:visible;
+  }
+  .stat:nth-child(1){background:var(--b-soft);transform:rotate(-1deg);}
+  .stat:nth-child(2){background:var(--r-soft);transform:rotate(1deg);}
+  .stat:nth-child(3){background:var(--y-soft);transform:rotate(-1deg);}
+  .stat::before{
+    content:"";
+    position:absolute;
+    top:-11px;left:50%;
+    width:58px;height:20px;
+    transform:translateX(-50%) rotate(-4deg);
+    clip-path:polygon(0% 35%,7% 5%,14% 28%,21% 3%,28% 30%,35% 4%,42% 27%,49% 3%,56% 29%,63% 3%,70% 27%,77% 4%,84% 29%,91% 3%,100% 20%,100% 100%,0% 100%);
+    opacity:.8;
+  }
+  .stat:nth-child(1)::before{background:var(--b);}
+  .stat:nth-child(2)::before{background:var(--r);}
+  .stat:nth-child(3)::before{background:var(--o);}
+  .stat .label{font-family:var(--font-display);font-size:14px;color:var(--pencil-soft);margin:0 0 6px;}
+  .stat .value{font-family:var(--font-display);font-size:26px;margin:0;color:var(--pencil);}
+
+  .progress-block{
+    border:3px solid var(--pencil);
+    border-radius:16px;
+    padding:14px 16px;
+    margin-bottom:20px;
+    background:var(--paper-card);
+  }
+  .progress-block .row{display:flex;justify-content:space-between;font-size:13px;color:var(--pencil-soft);margin-bottom:8px;font-weight:700;}
+  .progress-bar{height:14px;background:var(--r-soft);border:2px solid var(--pencil);border-radius:8px;overflow:hidden;}
+  .progress-bar > div{height:100%;background:var(--g);}
+
+  .recent-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .recent-list{border:3px solid var(--pencil);border-radius:16px;padding:14px;background:var(--paper-card);}
+  .recent-list h3{font-family:var(--font-display);font-weight:400;font-size:17px;margin:0 0 8px;color:var(--board);}
+  .recent-item{
+    display:flex;justify-content:space-between;gap:8px;
+    font-size:13px;padding:7px 0;border-bottom:2px dotted var(--dot);
+  }
+  .recent-item .amt.income{color:var(--b);font-weight:700;}
+  .recent-item .amt.expense{color:var(--r);font-weight:700;}
+
+  /* ---------- Toolbar / Buttons ---------- */
+  .toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .toolbar .summary{font-family:var(--font-display);font-size:16px;color:var(--pencil-soft);}
+  .btn{
+    font-family:var(--font-display);
+    font-size:16px;
+    padding:8px 18px;
+    border:3px solid var(--pencil);
+    background:var(--y);
+    color:var(--pencil);
+    cursor:pointer;
+    border-radius:20px;
+    box-shadow:3px 3px 0 var(--pencil);
+  }
+  .btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--pencil);}
+  .btn.secondary{background:var(--paper-card);}
+  .btn.small{padding:5px 12px;font-size:12px;box-shadow:2px 2px 0 var(--pencil);}
+
+  /* ---------- Table ---------- */
+  table{width:100%;border-collapse:separate;border-spacing:0 6px;font-size:13px;}
+  thead th{
+    text-align:left;
+    font-family:var(--font-display);
+    font-size:15px;
+    color:var(--pencil-soft);
+    padding:4px 10px;
+  }
+  td.num, th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  tbody tr.student-row{
+    background:var(--paper-card);
+    cursor:pointer;
+  }
+  tbody tr.student-row td{
+    padding:10px;
+    border-top:3px solid var(--pencil);
+    border-bottom:3px solid var(--pencil);
+  }
+  tbody tr.student-row td:first-child{border-left:3px solid var(--pencil);border-radius:12px 0 0 12px;}
+  tbody tr.student-row td:last-child{border-right:3px solid var(--pencil);border-radius:0 12px 12px 0;}
+  tbody tr.student-row:hover{background:var(--y-soft);}
+  #reportExpenseTable tr td{padding:8px 10px;border-bottom:1px dotted var(--dot);}
+
+  .tag{
+    display:inline-block;
+    font-family:var(--font-display);
+    font-size:13px;
+    padding:3px 12px;
+    border-radius:20px;
+    border:2px dashed currentColor;
+    transform:rotate(-3deg);
+  }
+  .tag.paid{background:var(--b-soft);color:var(--b);}
+  .tag.unpaid{background:var(--r-soft);color:var(--r);}
+  .tag.partial{background:var(--y-soft);color:#8A6A12;}
+
+  /* ---------- Expense list ---------- */
+  .expense-card{
+    position:relative;
+    display:flex;gap:12px;
+    border:3px solid var(--pencil);
+    border-radius:14px;
+    padding:10px;
+    margin-bottom:16px;
+    margin-top:6px;
+    align-items:center;
+    background:var(--paper-card);
+    overflow:visible;
+  }
+  .expense-card::before{
+    content:"";
+    position:absolute;
+    top:-10px;left:22px;
+    width:46px;height:18px;
+    transform:rotate(-5deg);
+    background:var(--y);
+    opacity:.85;
+    clip-path:polygon(0% 30%,8% 4%,16% 26%,24% 3%,32% 28%,40% 4%,48% 26%,56% 3%,64% 28%,72% 4%,80% 26%,88% 3%,100% 18%,100% 100%,0% 100%);
+  }
+  .expense-card .thumb{
+    width:52px;height:52px;flex:none;
+    background:var(--y-soft);
+    border:2px solid var(--pencil);
+    border-radius:10px;
+    background-size:cover;background-position:center;
+    display:flex;align-items:center;justify-content:center;
+    font-size:10px;color:var(--pencil-soft);text-align:center;
+  }
+  .expense-card .info{flex:1;min-width:0;}
+  .expense-card .info .top{display:flex;justify-content:space-between;gap:8px;}
+  .expense-card .item{font-weight:700;font-size:14px;}
+  .expense-card .meta{font-size:12px;color:var(--pencil-soft);margin-top:2px;}
+  .expense-card .amt{font-family:var(--font-display);color:var(--r);font-size:18px;white-space:nowrap;}
+
+  /* ---------- Report ---------- */
+  .report-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px;}
+  .report-summary .box{border:3px solid var(--pencil);border-radius:16px;padding:14px;text-align:center;background:var(--paper-card);}
+  .report-summary .box:nth-child(1){background:var(--b-soft);}
+  .report-summary .box:nth-child(2){background:var(--r-soft);}
+  .report-summary .box:nth-child(3){background:var(--y-soft);}
+  .report-summary .box .label{font-size:12px;color:var(--pencil-soft);font-weight:700;}
+  .report-summary .box .value{font-family:var(--font-display);font-size:26px;margin-top:4px;}
+  .cat-row{display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:9px;}
+  .cat-row .cat-name{width:90px;flex:none;color:var(--pencil-soft);font-weight:700;}
+  .cat-row .cat-bar{flex:1;height:10px;background:var(--dot);border-radius:6px;overflow:hidden;}
+  .cat-row .cat-bar div{height:100%;background:var(--o);}
+  .cat-row .cat-amt{width:70px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;}
+  .unpaid-note{
+    border:3px dashed var(--r);
+    background:var(--r-soft);
+    border-radius:14px;
+    padding:12px 14px;
+    font-size:13px;
+    margin-top:20px;
+  }
+
+  h3.subhead{font-family:var(--font-display);font-weight:400;font-size:20px;color:var(--board);margin-bottom:10px;}
+  h3.subhead::before{content:"✎ ";color:var(--o);}
+  .recent-list h3::before{content:"✎ ";color:var(--o);}
+
+  /* 保險：若 Iansui 因網路限制未能載入，靠加粗維持手感，不會退回死板字體 */
+  header.board h1, h2.section-title, h3.subhead, .recent-list h3,
+  .btn, .tag, nav.tabs button, thead th, .toolbar .summary,
+  header.board .balance-value, .stat .label, .stat .value, .modal-head{
+    font-weight:700;
+  }
+
+  /* ---------- Bottom nav (mobile) ---------- */
+  nav.bottombar{display:none;}
+
+  /* ---------- Modal ---------- */
+  dialog{
+    border:4px solid var(--pencil);
+    border-radius:18px;
+    padding:0;
+    width:min(440px,92vw);
+    background:var(--paper);
+    box-shadow:6px 6px 0 rgba(59,48,36,.25);
+  }
+  dialog::backdrop{background:rgba(20,20,15,.5);}
+  .modal-head{
+    background:var(--board);color:var(--chalk);
+    padding:14px 18px;font-family:var(--font-display);font-weight:400;font-size:19px;
+    display:flex;justify-content:space-between;align-items:center;
+    border-radius:14px 14px 0 0;
+  }
+  .modal-head button{background:none;border:none;color:var(--chalk);font-size:18px;cursor:pointer;}
+  .modal-body{padding:16px 18px 20px;}
+  .field{margin-bottom:13px;}
+  .field label{display:block;font-size:12px;color:var(--pencil-soft);margin-bottom:4px;font-weight:700;}
+  .field input, .field select, .field textarea{
+    width:100%;padding:9px 10px;border:2px solid var(--pencil);
+    background:#fff;font-family:inherit;font-size:14px;border-radius:10px;
+  }
+  .field-row{display:flex;gap:10px;}
+  .field-row > .field{flex:1;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:6px;}
+  .photo-preview{
+    margin-top:8px;width:100%;max-height:160px;object-fit:contain;
+    border:2px dashed var(--pencil-soft);border-radius:10px;display:none;background:#fff;
+  }
+
+  @media print{
+    header.board .doodles, nav.tabs, nav.bottombar, #demoBanner, .no-print{display:none !important;}
+    section.view{display:none !important;}
+    section.view#report-view{display:block !important;}
+    body{background:#fff;padding:0;}
+    main{padding:0;max-width:none;}
+    header.board{margin:0;border-radius:0;}
+  }
+
+  @media (max-width:680px){
+    header.board h1{font-size:24px;}
+    header.board .balance-value{font-size:26px;}
+    nav.tabs{display:none;}
+    nav.bottombar{
+      display:flex;position:fixed;bottom:0;left:0;right:0;
+      background:var(--board);border-top:6px solid var(--frame);
+      z-index:20;
+    }
+    nav.bottombar button{
+      flex:1;background:none;border:none;color:var(--chalk-dim);
+      padding:9px 2px 8px;font-size:11px;font-weight:700;display:flex;flex-direction:column;
+      align-items:center;gap:3px;cursor:pointer;
+    }
+    nav.bottombar button .ico{font-size:18px;}
+    nav.bottombar button.active{color:var(--y);}
+    .grid-3{grid-template-columns:1fr;}
+    .recent-cols{grid-template-columns:1fr;}
+    .report-summary{grid-template-columns:1fr;}
+    .stat{transform:none !important;}
+    thead{display:none;}
+    table{border-spacing:0;}
+    table, tbody, tr, td{display:block;width:100%;}
+    tbody tr.student-row{
+      border:3px solid var(--pencil) !important;border-radius:14px !important;
+      margin-bottom:10px;padding:8px 12px;
+    }
+    tbody tr.student-row td{
+      border:none !important;border-radius:0 !important;padding:3px 0;display:flex;justify-content:space-between;
+    }
+    tbody tr.student-row td.num{text-align:right;}
+    tbody tr.student-row td:before{content:attr(data-label);color:var(--pencil-soft);font-size:12px;font-weight:700;}
+  }
+  /* ---------- 收費狀況：座號貼紙 ---------- */
+  .due-hero{
+    display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;
+    border:3px solid var(--pencil);border-radius:16px;background:var(--y-soft);
+    padding:16px 20px;margin-bottom:20px;
+  }
+  .due-hero .item{text-align:center;}
+  .due-hero .item .label{font-family:var(--font-display);font-size:14px;color:var(--pencil-soft);}
+  .due-hero .item .value{font-family:var(--font-display);font-size:30px;font-weight:700;}
+  .seat-section{margin-bottom:20px;}
+  .seat-section h3{font-family:var(--font-display);font-size:17px;margin:0 0 10px;display:flex;align-items:center;gap:8px;}
+  .seat-section h3 .dot{width:12px;height:12px;border-radius:50%;display:inline-block;}
+  .seat-board{
+    border:3px dashed var(--pencil);
+    border-radius:16px;
+    background:var(--paper-shade,#F6F1E2);
+    padding:16px;
+  }
+  .seat-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(40px,1fr));
+    gap:8px;
+    justify-items:center;
+  }
+  .seat-chip{
+    position:relative;
+    width:42px;height:42px;border-radius:9px;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-display);font-weight:700;font-size:16px;
+    border:3px solid var(--pencil);
+    box-shadow:2px 2px 0 rgba(59,48,36,.35);
+    background:var(--paper-card);
+  }
+  .seat-chip.M{background:var(--b-soft);color:var(--b);}
+  .seat-chip.F{background:#FFE3EA;color:var(--p);}
+  .paid-summary{
+    border:3px solid var(--pencil);border-radius:16px;
+    background:var(--g-soft);padding:16px 20px;
+    display:flex;align-items:baseline;gap:10px;
+  }
+  .paid-summary .num{font-family:var(--font-display);font-size:32px;font-weight:700;color:var(--g);}
+  .paid-summary .txt{font-size:14px;color:var(--pencil-soft);}
+</style>
+</head>
+<body>
+
+<header class="board">
+  <svg class="doodles" viewBox="0 0 400 160" preserveAspectRatio="none">
+    <path d="M20 30 l4 -10 4 10 10 2 -8 7 3 11 -9 -6 -9 6 3 -11 -8 -7 z" fill="none" stroke="#F7F3E3" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M350 26 l3 -8 3 8 8 2 -6 6 2 9 -7 -5 -7 5 2 -9 -6 -6 z" fill="none" stroke="#FFC94D" stroke-width="1.6" stroke-linejoin="round"/>
+  </svg>
+  <div class="wrap">
+    <div class="title">
+      <p class="school">西松國小・給老師與家長查詢</p>
+      <h1 id="className">一年三班 班費本 ✏️</h1>
+    </div>
+    <div class="balance-box">
+      <p class="balance-label">目前結餘</p>
+      <p class="balance-value" id="headerBalance">$0</p>
+    </div>
+  </div>
+</header>
+<div id="demoBanner" style="display:none;max-width:900px;margin:0 14px 14px;background:var(--y-soft);border:2px dashed var(--o);color:#6b4a12;font-size:13px;padding:9px 13px;border-radius:12px;">預覽模式：目前顯示示範資料，尚未連接 Firebase。</div>
+
+<main>
+
+  <section class="view active" id="dashboard-view">
+    <h2 class="section-title">收費狀況</h2>
+
+    <div class="due-hero">
+      <div class="item"><p class="label">此次應繳金額</p><p class="value" id="dueAmountDisplay">$0</p></div>
+      <div class="item"><p class="label">已收總金額</p><p class="value" id="totalCollected">$0</p></div>
+      <div class="item"><p class="label">繳費進度</p><p class="value" id="paidRatio">0 / 0</p></div>
+    </div>
+
+    <div class="seat-section">
+      <h3>✅ 已繳交</h3>
+      <div class="paid-summary" id="paidSummaryBox"></div>
+    </div>
+    <div class="seat-section">
+      <h3>⏳ 未繳交座號</h3>
+      <div class="seat-board"><div class="seat-grid" id="unpaidSeatGrid"></div></div>
+    </div>
+
+    <h2 class="section-title" style="margin-top:28px;">班費支出總覽</h2>
+    <div class="grid-3">
+      <div class="stat income"><p class="label">已收班費</p><p class="value" id="statIncome">$0</p></div>
+      <div class="stat expense"><p class="label">已支出</p><p class="value" id="statExpense">$0</p></div>
+      <div class="stat"><p class="label">結餘</p><p class="value" id="statBalance">$0</p></div>
+    </div>
+
+    <h3 class="subhead">支出分類</h3>
+    <div id="categoryBreakdown"></div>
+
+    <h3 class="subhead" style="margin-top:20px;">支出明細</h3>
+    <div id="expenseList"></div>
+  </section>
+
+</main>
+
+<script type="module">
+/* ======================================================================
+   Firebase 設定區（請填入與後台 admin.html 相同的 Firebase 專案設定）
+   前台只讀取資料，不會寫入，所以就算前台網址被分享出去，
+   也不會有人能從這裡修改班費資料——但仍建議在 Firestore 安全規則中
+   把 students / expenses / settings 設為「任何人可讀，只有登入的後台可寫」。
+   ====================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyArles224lKYRWRBEr-cVlUfvNR32huk-Q",
+  authDomain: "classfund103.firebaseapp.com",
+  projectId: "classfund103",
+  storageBucket: "classfund103.firebasestorage.app",
+  messagingSenderId: "785189142403",
+  appId: "1:785189142403:web:82eb7c95179eeb433c40b6"
+};
+
+let firebaseReady = false;
+let db, fsApi;
+
+async function tryInitFirebase(){
+  if(firebaseConfig.apiKey.startsWith("YOUR_")) return false;
+  try{
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+    const firestore = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+    const app = initializeApp(firebaseConfig);
+    db = firestore.getFirestore(app);
+    fsApi = firestore;
+    return true;
+  }catch(e){
+    console.warn("Firebase 初始化失敗，改用示範資料：", e);
+    return false;
+  }
+}
+
+/* 示範資料，需與 admin.html 的欄位結構一致（seat/gender/due/paid...） */
+const DEMO_STUDENTS = [
+  {id:"s1",seat:1,gender:"M",due:500,paid:500},{id:"s2",seat:2,gender:"F",due:500,paid:500},
+  {id:"s3",seat:3,gender:"M",due:500,paid:0},{id:"s4",seat:4,gender:"F",due:500,paid:500},
+  {id:"s5",seat:5,gender:"M",due:500,paid:500},{id:"s6",seat:6,gender:"F",due:500,paid:0},
+  {id:"s7",seat:7,gender:"M",due:500,paid:500},{id:"s8",seat:8,gender:"F",due:500,paid:500},
+  {id:"s9",seat:9,gender:"M",due:500,paid:500},{id:"s10",seat:10,gender:"F",due:500,paid:300},
+  {id:"s11",seat:11,gender:"M",due:500,paid:500},{id:"s12",seat:12,gender:"F",due:500,paid:500},
+  {id:"s13",seat:13,gender:"M",due:500,paid:0},{id:"s14",seat:14,gender:"F",due:500,paid:500},
+  {id:"s15",seat:15,gender:"M",due:500,paid:500},{id:"s16",seat:16,gender:"F",due:500,paid:500},
+  {id:"s17",seat:17,gender:"M",due:500,paid:500},{id:"s18",seat:18,gender:"F",due:500,paid:0},
+  {id:"s19",seat:19,gender:"M",due:500,paid:500},{id:"s20",seat:20,gender:"F",due:500,paid:500},
+  {id:"s21",seat:21,gender:"M",due:500,paid:500},{id:"s22",seat:22,gender:"F",due:500,paid:500},
+  {id:"s23",seat:23,gender:"M",due:500,paid:0},{id:"s24",seat:24,gender:"F",due:500,paid:500},
+];
+const DEMO_EXPENSES = [
+  {id:"e1", date:"2026-09-10", item:"美勞課材料（色紙、膠水）", category:"教學用品", amount:680, note:"", photo:null},
+  {id:"e2", date:"2026-09-15", item:"生日慶生小禮物", category:"獎勵品", amount:450, note:"9月壽星共3人", photo:null},
+  {id:"e3", date:"2026-09-20", item:"班級圖書角新書", category:"教學用品", amount:920, note:"", photo:null},
+  {id:"e4", date:"2026-10-02", item:"園遊會攤位材料", category:"班級活動", amount:1250, note:"", photo:null},
+];
+
+let state = {
+  settings: { dueAmount: 500 },
+  students: JSON.parse(JSON.stringify(DEMO_STUDENTS)),
+  expenses: JSON.parse(JSON.stringify(DEMO_EXPENSES)),
+};
+
+const money = n => "$" + Number(n||0).toLocaleString("zh-TW");
+
+function render(){
+  const totalIncome = state.students.reduce((s,x)=>s+Number(x.paid||0),0);
+  const totalExpense = state.expenses.reduce((s,x)=>s+Number(x.amount||0),0);
+  const balance = totalIncome - totalExpense;
+
+  document.getElementById("headerBalance").textContent = money(balance);
+  document.getElementById("statIncome").textContent = money(totalIncome);
+  document.getElementById("statExpense").textContent = money(totalExpense);
+  document.getElementById("statBalance").textContent = money(balance);
+
+  document.getElementById("dueAmountDisplay").textContent = money(state.settings.dueAmount);
+  document.getElementById("totalCollected").textContent = money(totalIncome);
+
+  const paid = state.students.filter(s=>Number(s.paid) >= Number(s.due) && Number(s.due)>0).sort((a,b)=>a.seat-b.seat);
+  const unpaid = state.students.filter(s=>Number(s.paid) < Number(s.due)).sort((a,b)=>a.seat-b.seat);
+  document.getElementById("paidRatio").textContent = `${paid.length} / ${state.students.length}`;
+
+  document.getElementById("paidSummaryBox").innerHTML = paid.length
+    ? `<span class="num">${paid.length}</span><span class="txt">位家長已完成繳費（共 ${state.students.length} 位）</span>`
+    : `<span class="txt">目前還沒有人繳費</span>`;
+
+  document.getElementById("unpaidSeatGrid").innerHTML = unpaid.map(s=>
+    `<div class="seat-chip pending ${s.gender==='F'?'F':'M'}">${s.seat}</div>`
+  ).join("") || `<p style="font-size:13px;color:var(--pencil-soft);">大家都繳齊囉 🎉</p>`;
+
+  const byCat = {};
+  state.expenses.forEach(e=>{ byCat[e.category] = (byCat[e.category]||0) + Number(e.amount||0); });
+  const maxCat = Math.max(1, ...Object.values(byCat));
+  document.getElementById("categoryBreakdown").innerHTML = Object.entries(byCat).map(([cat,amt])=>`
+    <div class="cat-row">
+      <span class="cat-name">${cat}</span>
+      <span class="cat-bar"><div style="width:${(amt/maxCat*100)}%"></div></span>
+      <span class="cat-amt">${money(amt)}</span>
+    </div>
+  `).join("") || `<p style="font-size:13px;color:var(--pencil-soft);">尚無支出資料</p>`;
+
+  const sortedExp = [...state.expenses].sort((a,b)=> (b.date||"").localeCompare(a.date||""));
+  document.getElementById("expenseList").innerHTML = sortedExp.map(e=>`
+    <div class="expense-card">
+      <div class="thumb" style="${e.photo? `background-image:url(${e.photo})`:""}">${e.photo? "":"無照片"}</div>
+      <div class="info">
+        <div class="top"><span class="item">${e.item}</span><span class="amt">-${money(e.amount)}</span></div>
+        <div class="meta">${e.date}・${e.category}${e.note? "・"+e.note:""}</div>
+      </div>
+    </div>
+  `).join("") || `<p style="font-size:13px;color:var(--pencil-soft);">尚無支出紀錄</p>`;
+}
+
+(async function init(){
+  firebaseReady = await tryInitFirebase();
+  document.getElementById("demoBanner").style.display = firebaseReady? "none":"block";
+
+  if(firebaseReady){
+    state.students = []; state.expenses = [];
+    fsApi.onSnapshot(fsApi.doc(db,"settings","current"), snap=>{
+      if(snap.exists()){ state.settings = {...state.settings, ...snap.data()}; }
+      render();
+    });
+    fsApi.onSnapshot(fsApi.collection(db,"students"), snap=>{
+      state.students = snap.docs.map(d=>({id:d.id,...d.data()}));
+      render();
+    });
+    fsApi.onSnapshot(fsApi.collection(db,"expenses"), snap=>{
+      state.expenses = snap.docs.map(d=>({id:d.id,...d.data()}));
+      render();
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
