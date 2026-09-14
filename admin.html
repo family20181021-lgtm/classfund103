@@ -504,6 +504,7 @@
     </div>
     <div class="toolbar">
       <span class="summary" id="studentSummary">共 0 位學生</span>
+      <button class="btn secondary" id="importRosterBtn">📋 匯入班級名單（24人）</button>
       <button class="btn" id="addStudentBtn">＋ 新增學生</button>
     </div>
     <table>
@@ -801,6 +802,54 @@ function openStudentDialog(id){
   dlg.showModal();
 }
 document.getElementById("addStudentBtn").addEventListener("click", ()=>openStudentDialog(null));
+
+/* ---------- 一鍵匯入班級名單 ---------- */
+const CLASS_ROSTER = [
+  {seat:1,  name:"許宇其", gender:"M"},
+  {seat:2,  name:"呂彥陞", gender:"M"},
+  {seat:3,  name:"邱禹皓", gender:"M"},
+  {seat:4,  name:"鄭孝程", gender:"M"},
+  {seat:5,  name:"黃士辰", gender:"M"},
+  {seat:6,  name:"盧品灃", gender:"M"},
+  {seat:7,  name:"林煒爵", gender:"M"},
+  {seat:8,  name:"許庭翊", gender:"M"},
+  {seat:9,  name:"陳敘恩", gender:"M"},
+  {seat:10, name:"許元伸", gender:"M"},
+  {seat:11, name:"高丞彥", gender:"M"},
+  {seat:12, name:"顏辰叡", gender:"M"},
+  {seat:13, name:"賴柏霖", gender:"M"},
+  {seat:14, name:"鄭乃辰", gender:"M"},
+  {seat:21, name:"陳妍安", gender:"F"},
+  {seat:22, name:"何品萫", gender:"F"},
+  {seat:23, name:"蕭璟芫", gender:"F"},
+  {seat:24, name:"郭允恩", gender:"F"},
+  {seat:25, name:"陳萭安", gender:"F"},
+  {seat:26, name:"林妘霜", gender:"F"},
+  {seat:27, name:"簡心",  gender:"F"},
+  {seat:28, name:"許卓儀", gender:"F"},
+  {seat:29, name:"許曼馨", gender:"F"},
+  {seat:30, name:"陳圓",  gender:"F"},
+  {seat:31, name:"宋昀臻", gender:"F"},
+];
+document.getElementById("importRosterBtn").addEventListener("click", async ()=>{
+  if(state.students.length){
+    if(!confirm(`目前已有 ${state.students.length} 位學生資料，匯入會再新增 24 筆，可能造成重複。確定要繼續嗎？`)) return;
+  }else{
+    if(!confirm("確定要匯入班級名單（24 位學生）嗎？")) return;
+  }
+  const rows = CLASS_ROSTER.map(r => ({
+    seat:r.seat, name:r.name, gender:r.gender,
+    due:state.settings.dueAmount, paid:0, paidDate:"", note:""
+  }));
+  if(firebaseReady){
+    const col = fsApi.collection(db,"students");
+    for(const row of rows){ await fsApi.addDoc(col, row); }
+  }else{
+    rows.forEach(row => state.students.push({id:"s"+Date.now()+Math.random(), ...row}));
+    renderDashboard(); renderStudents();
+  }
+  alert("已匯入 24 位學生名單！");
+});
 document.getElementById("saveStudentBtn").addEventListener("click", async ()=>{
   const data = {
     seat: Number(document.getElementById("f_seat").value||0),
