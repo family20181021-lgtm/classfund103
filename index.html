@@ -625,28 +625,25 @@ function render(){
     `<div class="seat-chip pending ${s.gender==='F'?'F':'M'}">${s.seat}</div>`
   ).join("") || `<p style="font-size:13px;color:var(--pencil-soft);">大家都繳齊囉 🎉</p>`;
 
+  /* 收入明細：合併成單一筆（日期顯示區間，展開可看已繳座號） */
   const paidStudents = state.students.filter(s=>Number(s.paid)>0);
-  const groupMap = {};
-  paidStudents.forEach(s=>{
-    const key = s.paidDate || "";
-    (groupMap[key] = groupMap[key]||[]).push(s);
-  });
-  const incomeGroups = Object.entries(groupMap).map(([date,members])=>({
-    date,
-    count: members.length,
-    amount: members.reduce((sum,s)=>sum+Number(s.paid),0),
-    seats: members.map(s=>s.seat).sort((a,b)=>a-b),
-  })).sort((a,b)=> (b.date||"").localeCompare(a.date||""));
-
-  document.getElementById("incomeList").innerHTML = incomeGroups.map(g=>`
-    <details class="income-group">
-      <summary>
-        <span>💰 ${g.date||"日期未填"}．班費收入 × ${g.count}位</span>
-        <span class="amt">+${money(g.amount)}</span>
-      </summary>
-      <div class="members">座號：${g.seats.join("、")}</div>
-    </details>
-  `).join("") || `<p style="font-size:13px;color:var(--pencil-soft);">尚無收入紀錄</p>`;
+  if(paidStudents.length){
+    const dates = paidStudents.map(s=>s.paidDate).filter(Boolean).sort();
+    const range = dates.length
+      ? (dates[0]===dates[dates.length-1] ? dates[0] : `${dates[0]} ~ ${dates[dates.length-1]}`)
+      : "日期未填";
+    const seats = paidStudents.map(s=>s.seat).sort((a,b)=>a-b);
+    document.getElementById("incomeList").innerHTML = `
+      <details class="income-group">
+        <summary>
+          <span>💰 ${range}．班費收入 × ${paidStudents.length}位</span>
+          <span class="amt">+${money(totalIncome)}</span>
+        </summary>
+        <div class="members">座號：${seats.join("、")}</div>
+      </details>`;
+  }else{
+    document.getElementById("incomeList").innerHTML = `<p style="font-size:13px;color:var(--pencil-soft);">尚無收入紀錄</p>`;
+  }
 
   const byCat = {};
   state.expenses.forEach(e=>{ byCat[e.category] = (byCat[e.category]||0) + Number(e.amount||0); });
