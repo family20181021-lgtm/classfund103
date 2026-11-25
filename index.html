@@ -653,6 +653,20 @@ let state = {
 };
 
 const money = n => "$" + Number(n||0).toLocaleString("zh-TW");
+/* ---------- 學期 ---------- */
+const DEFAULT_SEM = "一年級上學期";
+const semOf = s => s.semester || DEFAULT_SEM;           // 舊資料沒有 semester 欄位 → 視為一年級上學期
+function semList(){
+  const names = [...(state.settings.semesters||[])];
+  state.students.forEach(s=>{ const n = semOf(s); if(!names.includes(n)) names.push(n); });
+  if(!names.length) names.push(DEFAULT_SEM);
+  return names;                                          // 由舊到新
+}
+function curSem(){
+  const list = semList();
+  const c = state.settings.currentSemester;
+  return (c && list.includes(c)) ? c : list[list.length-1];
+}
 const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 /* ---------- 附件：相容舊資料（單張 photo）與新資料（photos 陣列） ---------- */
@@ -725,15 +739,18 @@ function render(){
   document.getElementById("statExpense").textContent = money(totalExpense);
   document.getElementById("statBalance").textContent = money(balance);
 
-  const paidCount = state.students.filter(s=>Number(s.paid)>0).length;
+  const semStudents = state.students.filter(s=>semOf(s)===curSem());
+  const paidCount = semStudents.filter(s=>Number(s.paid)>0).length;
   document.getElementById("feeDue").textContent = money(state.settings.dueAmount);
   document.getElementById("feePaidCount").textContent = paidCount + " 人";
-  document.getElementById("feeTotal").textContent = money(feeIncome);
+  document.getElementById("feeTotal").textContent = money(semStudents.reduce((t,x)=>t+Number(x.paid||0),0));
 
-  const paidCount2 = state.students.filter(s=>Number(s.paid)>0).length;
-  const feeRow = paidCount2
-    ? `<div class="income-group"><div class="income-total"><span>💰 班費收入 × ${paidCount2}位</span><span class="amt">+${money(feeIncome)}</span></div></div>`
-    : "";
+  const feeRow = [...semList()].reverse().map(name=>{
+    const rows = state.students.filter(x=>semOf(x)===name && Number(x.paid)>0);
+    if(!rows.length) return "";
+    const sum = rows.reduce((t,x)=>t+Number(x.paid||0),0);
+    return `<div class="income-group"><div class="income-total"><span>💰 ${esc(name)}　班費收入 × ${rows.length}位</span><span class="amt">+${money(sum)}</span></div></div>`;
+  }).join("");
   const otherRows = [...(state.incomes||[])].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(e=>`
     <div class="expense-card income">
       <div class="info">
