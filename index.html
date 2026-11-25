@@ -528,6 +528,8 @@
   .grid-3 .stat{transform:none !important;display:flex;flex-direction:column;justify-content:space-between;min-height:104px;}
   .grid-3 .stat .label{margin:0 0 8px;}
   .grid-3 .stat .value{margin:0;}
+  .expense-card.income .amt{color:var(--b);}
+  .expense-card.income::before{background:var(--b);}
 </style>
 </head>
 <body>
@@ -647,6 +649,7 @@ let state = {
   settings: { dueAmount: 500 },
   students: JSON.parse(JSON.stringify(DEMO_STUDENTS)),
   expenses: JSON.parse(JSON.stringify(DEMO_EXPENSES)),
+  incomes: [],
 };
 
 const money = n => "$" + Number(n||0).toLocaleString("zh-TW");
@@ -706,13 +709,14 @@ document.addEventListener("keydown", ev=>{
 document.addEventListener("click", ev=>{
   const b = ev.target.closest("button.att");
   if(!b) return;
-  const e = state.expenses.find(x=>x.id===b.dataset.eid);
+  const e = [...state.expenses, ...(state.incomes||[])].find(x=>x.id===b.dataset.eid);
   if(!e) return;
   openLightbox(getAttachments(e).filter(a=>!a.isPdf), Number(b.dataset.idx));
 });
 
 function render(){
-  const totalIncome = state.students.reduce((s,x)=>s+Number(x.paid||0),0);
+  const feeIncome = state.students.reduce((s,x)=>s+Number(x.paid||0),0);
+  const totalIncome = feeIncome + (state.incomes||[]).reduce((s,x)=>s+Number(x.amount||0),0);
   const totalExpense = state.expenses.reduce((s,x)=>s+Number(x.amount||0),0);
   const balance = totalIncome - totalExpense;
 
@@ -724,12 +728,23 @@ function render(){
   const paidCount = state.students.filter(s=>Number(s.paid)>0).length;
   document.getElementById("feeDue").textContent = money(state.settings.dueAmount);
   document.getElementById("feePaidCount").textContent = paidCount + " 人";
-  document.getElementById("feeTotal").textContent = money(totalIncome);
+  document.getElementById("feeTotal").textContent = money(feeIncome);
 
   const paidCount2 = state.students.filter(s=>Number(s.paid)>0).length;
-  document.getElementById("incomeList").innerHTML = paidCount2
-    ? `<div class="income-group"><div class="income-total"><span>💰 班費收入 × ${paidCount2}位</span><span class="amt">+${money(totalIncome)}</span></div></div>`
-    : `<p style="font-size:13px;color:var(--pencil-soft);">尚無收入紀錄</p>`;
+  const feeRow = paidCount2
+    ? `<div class="income-group"><div class="income-total"><span>💰 班費收入 × ${paidCount2}位</span><span class="amt">+${money(feeIncome)}</span></div></div>`
+    : "";
+  const otherRows = [...(state.incomes||[])].sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(e=>`
+    <div class="expense-card income">
+      <div class="info">
+        <div class="top"><span class="item">💰 ${esc(e.item)}</span><span class="amt">+${money(e.amount)}</span></div>
+        <div class="meta">${esc(e.date)}・${esc(e.category)}</div>
+        ${e.note ? `<div class="note">${esc(e.note)}</div>` : ""}
+      </div>
+      ${attHtml(e)}
+    </div>`).join("");
+  document.getElementById("incomeList").innerHTML = (feeRow + otherRows)
+    || `<p style="font-size:13px;color:var(--pencil-soft);">尚無收入紀錄</p>`;
 
   const byCat = {};
   state.expenses.forEach(e=>{ byCat[e.category] = (byCat[e.category]||0) + Number(e.amount||0); });
@@ -760,7 +775,7 @@ function render(){
   document.getElementById("demoBanner").style.display = firebaseReady? "none":"block";
 
   if(firebaseReady){
-    state.students = []; state.expenses = [];
+    state.students = []; state.expenses = []; state.incomes = [];
     fsApi.onSnapshot(fsApi.doc(db,"settings","current"), snap=>{
       if(snap.exists()){ state.settings = {...state.settings, ...snap.data()}; }
       render();
@@ -771,6 +786,10 @@ function render(){
     });
     fsApi.onSnapshot(fsApi.collection(db,"expenses"), snap=>{
       state.expenses = snap.docs.map(d=>({id:d.id,...d.data()}));
+      render();
+    });
+    fsApi.onSnapshot(fsApi.collection(db,"incomes"), snap=>{
+      state.incomes = snap.docs.map(d=>({id:d.id,...d.data()}));
       render();
     });
   }
