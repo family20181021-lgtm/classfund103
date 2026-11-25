@@ -521,6 +521,13 @@
   .lb-nav.prev{left:10px;} .lb-nav.next{right:10px;}
   .lightbox.single .lb-nav{display:none;}
   .lb-count{position:fixed;bottom:14px;left:0;right:0;text-align:center;color:var(--chalk);font-size:14px;z-index:1001;pointer-events:none;}
+  .income-total{display:flex;justify-content:space-between;align-items:center;gap:10px;font-family:var(--font-display);font-weight:700;font-size:15px;}
+  .income-total .amt{color:var(--b);font-size:17px;white-space:nowrap;}
+  /* 三張收支卡片：整齊排列 */
+  .grid-3{align-items:stretch;}
+  .grid-3 .stat{transform:none !important;display:flex;flex-direction:column;justify-content:space-between;min-height:104px;}
+  .grid-3 .stat .label{margin:0 0 8px;}
+  .grid-3 .stat .value{margin:0;}
 </style>
 </head>
 <body>
@@ -553,11 +560,11 @@
       <span class="fee-item">已收總金額 <b id="feeTotal">$0</b></span>
     </div>
 
-    <h2 class="section-title">班費支出總覽</h2>
+    <h2 class="section-title">班費收支總覽</h2>
     <div class="grid-3">
-      <div class="stat income"><p class="label">已收班費</p><p class="value" id="statIncome">$0</p></div>
-      <div class="stat expense"><p class="label">已支出</p><p class="value" id="statExpense">$0</p></div>
-      <div class="stat"><p class="label">結餘</p><p class="value" id="statBalance">$0</p></div>
+      <div class="stat income"><p class="label">一年級(上學期)已收班費</p><p class="value" id="statIncome">$0</p></div>
+      <div class="stat expense"><p class="label">一年級(上學期)已支出</p><p class="value" id="statExpense">$0</p></div>
+      <div class="stat"><p class="label">本學期結餘</p><p class="value" id="statBalance">$0</p></div>
     </div>
 
     <h3 class="subhead">收入明細</h3>
@@ -719,28 +726,10 @@ function render(){
   document.getElementById("feePaidCount").textContent = paidCount + " 人";
   document.getElementById("feeTotal").textContent = money(totalIncome);
 
-  const paidStudents = state.students.filter(s=>Number(s.paid)>0);
-  const groupMap = {};
-  paidStudents.forEach(s=>{
-    const key = s.paidDate || "";
-    (groupMap[key] = groupMap[key]||[]).push(s);
-  });
-  const incomeGroups = Object.entries(groupMap).map(([date,members])=>({
-    date,
-    count: members.length,
-    amount: members.reduce((sum,s)=>sum+Number(s.paid),0),
-    seats: members.map(s=>s.seat).sort((a,b)=>a-b),
-  })).sort((a,b)=> (b.date||"").localeCompare(a.date||""));
-
-  document.getElementById("incomeList").innerHTML = incomeGroups.map(g=>`
-    <details class="income-group">
-      <summary>
-        <span>💰 ${g.date||"日期未填"}．班費收入 × ${g.count}位</span>
-        <span class="amt">+${money(g.amount)}</span>
-      </summary>
-      <div class="members">座號：${g.seats.join("、")}</div>
-    </details>
-  `).join("") || `<p style="font-size:13px;color:var(--pencil-soft);">尚無收入紀錄</p>`;
+  const paidCount2 = state.students.filter(s=>Number(s.paid)>0).length;
+  document.getElementById("incomeList").innerHTML = paidCount2
+    ? `<div class="income-group"><div class="income-total"><span>💰 班費收入 × ${paidCount2}位</span><span class="amt">+${money(totalIncome)}</span></div></div>`
+    : `<p style="font-size:13px;color:var(--pencil-soft);">尚無收入紀錄</p>`;
 
   const byCat = {};
   state.expenses.forEach(e=>{ byCat[e.category] = (byCat[e.category]||0) + Number(e.amount||0); });
