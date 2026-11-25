@@ -439,6 +439,54 @@
     tbody tr.student-row td.num{text-align:right;}
     tbody tr.student-row td:before{content:attr(data-label);color:var(--pencil-soft);font-size:12px;font-weight:700;}
   }
+
+  .field textarea{resize:vertical;min-height:84px;line-height:1.6;}
+  .pv-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+  .pv{position:relative;width:72px;height:72px;border:2px solid var(--pencil);border-radius:10px;background:#fff;overflow:hidden;}
+  .pv img{width:100%;height:100%;object-fit:cover;display:block;}
+  .pv .pv-file{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:20px;padding:2px;text-align:center;}
+  .pv .pv-file span{font-size:9px;line-height:1.2;word-break:break-all;max-height:24px;overflow:hidden;}
+  .pv .pv-x{
+    position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;
+    border:2px solid var(--pencil);background:var(--y);color:var(--pencil);
+    font-size:11px;line-height:1;padding:0;cursor:pointer;
+  }
+  .photo-hint{font-size:12px;color:var(--pencil-soft);margin-top:6px;}
+
+  /* ---------- 附件縮圖 / 放大檢視 ---------- */
+  .expense-card{display:block;}
+  .expense-card .info{min-width:0;}
+  .expense-card .note{margin-top:6px;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word;}
+  .atts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .att{
+    width:64px;height:64px;padding:0;flex:none;
+    border:2px solid var(--pencil);border-radius:10px;background:var(--y-soft);
+    overflow:hidden;cursor:zoom-in;
+    display:flex;align-items:center;justify-content:center;
+    text-decoration:none;color:var(--pencil);
+    box-shadow:2px 2px 0 rgba(59,48,36,.25);
+  }
+  .att img{width:100%;height:100%;object-fit:cover;display:block;}
+  .att.pdf{flex-direction:column;font-size:22px;cursor:pointer;}
+  .att.pdf span{font-size:11px;font-weight:700;}
+  .lightbox{position:fixed;inset:0;z-index:1000;background:rgba(20,20,15,.92);display:flex;}
+  .lightbox[hidden]{display:none;}
+  .lb-stage{flex:1;display:flex;overflow:auto;padding:56px 12px 48px;}
+  .lb-stage img{
+    margin:auto;display:block;object-fit:contain;cursor:zoom-in;
+    max-width:calc(100vw - 24px);max-height:calc(100vh - 104px);
+  }
+  .lb-stage img.zoomed{max-width:none;max-height:none;width:220vw;height:auto;cursor:zoom-out;}
+  .lb-close,.lb-nav{
+    position:fixed;border:3px solid var(--pencil);background:var(--y);color:var(--pencil);
+    font-family:var(--font-display);font-weight:700;cursor:pointer;z-index:1001;
+    box-shadow:2px 2px 0 var(--pencil);
+  }
+  .lb-close{top:12px;right:12px;width:42px;height:42px;border-radius:50%;font-size:18px;}
+  .lb-nav{top:50%;transform:translateY(-50%);width:44px;height:56px;border-radius:14px;font-size:28px;line-height:1;}
+  .lb-nav.prev{left:10px;} .lb-nav.next{right:10px;}
+  .lightbox.single .lb-nav{display:none;}
+  .lb-count{position:fixed;bottom:14px;left:0;right:0;text-align:center;color:var(--chalk);font-size:14px;z-index:1001;pointer-events:none;}
 </style>
 </head>
 <body>
@@ -632,11 +680,12 @@
         <option>其他</option>
       </select>
     </div>
-    <div class="field"><label>備註</label><input type="text" id="e_note" placeholder="選填"></div>
+    <div class="field"><label>備註（可按 Enter 換行）</label><textarea id="e_note" rows="3" placeholder="選填，可多行"></textarea></div>
     <div class="field">
-      <label>發票 / 收據照片</label>
-      <input type="file" id="e_photo" accept="image/*" capture="environment">
-      <img id="e_photoPreview" class="photo-preview">
+      <label>發票 / 收據附件（可選多個檔案）</label>
+      <input type="file" id="e_photo" accept="image/*,application/pdf" multiple>
+      <div class="photo-hint" id="e_photoCount">可一次選多個，也可分次加入</div>
+      <div class="pv-grid" id="e_previews"></div>
     </div>
     <div class="modal-actions">
       <button class="btn secondary" data-close>取消</button>
@@ -644,6 +693,14 @@
     </div>
   </div>
 </dialog>
+
+<div id="lightbox" class="lightbox" hidden>
+  <button type="button" class="lb-close" id="lbClose" aria-label="關閉">✕</button>
+  <button type="button" class="lb-nav prev" id="lbPrev" aria-label="上一張">‹</button>
+  <div class="lb-stage" id="lbStage"><img id="lbImg" alt=""></div>
+  <button type="button" class="lb-nav next" id="lbNext" aria-label="下一張">›</button>
+  <div class="lb-count" id="lbCount"></div>
+</div>
 
 <script type="module">
 /* ======================================================================
@@ -736,6 +793,66 @@ let state = {
 };
 
 const money = n => "$" + Number(n||0).toLocaleString("zh-TW");
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ---------- 附件：相容舊資料（單張 photo）與新資料（photos 陣列） ---------- */
+function getAttachments(e){
+  const list = Array.isArray(e.photos) ? e.photos : (e.photo ? [e.photo] : []);
+  return list
+    .map(a => typeof a === "string" ? {url:a} : a)
+    .filter(a => a && a.url)
+    .map(a => ({
+      ...a,
+      isPdf: /pdf/i.test(a.type||"") || /\.pdf$/i.test(a.name||"") || /\.pdf(\?|$)/i.test(a.url) || a.url.startsWith("data:application/pdf")
+    }));
+}
+function attHtml(e){
+  const atts = getAttachments(e);
+  if(!atts.length) return "";
+  let imgIdx = 0;
+  return `<div class="atts">` + atts.map(a=>{
+    if(a.isPdf) return `<a class="att pdf" href="${esc(a.url)}" target="_blank" rel="noopener" title="${esc(a.name||"PDF")}">📄<span>PDF</span></a>`;
+    const idx = imgIdx++;
+    return `<button type="button" class="att" data-eid="${esc(e.id)}" data-idx="${idx}" aria-label="放大檢視附件"><img src="${esc(a.url)}" alt="" loading="lazy"></button>`;
+  }).join("") + `</div>`;
+}
+
+/* ---------- 附件放大檢視 ---------- */
+const lbEl = document.getElementById("lightbox");
+const lbImg = document.getElementById("lbImg");
+let lbItems = [], lbIndex = 0;
+function lbShow(){
+  const it = lbItems[lbIndex];
+  lbImg.classList.remove("zoomed");
+  lbImg.src = it.url;
+  document.getElementById("lbCount").textContent = lbItems.length>1 ? `${lbIndex+1} / ${lbItems.length}` : "";
+  lbEl.classList.toggle("single", lbItems.length<=1);
+}
+function openLightbox(items, start){
+  if(!items.length) return;
+  lbItems = items; lbIndex = start||0; lbShow();
+  lbEl.hidden = false; document.body.style.overflow = "hidden";
+}
+function closeLightbox(){ lbEl.hidden = true; lbImg.removeAttribute("src"); document.body.style.overflow = ""; }
+function lbStep(d){ lbIndex = (lbIndex + d + lbItems.length) % lbItems.length; lbShow(); }
+document.getElementById("lbClose").addEventListener("click", closeLightbox);
+document.getElementById("lbPrev").addEventListener("click", ()=>lbStep(-1));
+document.getElementById("lbNext").addEventListener("click", ()=>lbStep(1));
+lbImg.addEventListener("click", ()=>lbImg.classList.toggle("zoomed"));
+document.getElementById("lbStage").addEventListener("click", ev=>{ if(ev.target.id==="lbStage") closeLightbox(); });
+document.addEventListener("keydown", ev=>{
+  if(lbEl.hidden) return;
+  if(ev.key==="Escape") closeLightbox();
+  else if(ev.key==="ArrowLeft" && lbItems.length>1) lbStep(-1);
+  else if(ev.key==="ArrowRight" && lbItems.length>1) lbStep(1);
+});
+document.addEventListener("click", ev=>{
+  const b = ev.target.closest("button.att");
+  if(!b) return;
+  const e = state.expenses.find(x=>x.id===b.dataset.eid);
+  if(!e) return;
+  openLightbox(getAttachments(e).filter(a=>!a.isPdf), Number(b.dataset.idx));
+});
 
 /* ---------- 畫面切換 ---------- */
 function switchView(viewId){
@@ -859,9 +976,9 @@ const CLASS_ROSTER = [
 ];
 document.getElementById("importRosterBtn").addEventListener("click", async ()=>{
   if(state.students.length){
-    if(!confirm(`目前已有 ${state.students.length} 位學生資料，匯入會再新增 24 筆，可能造成重複。確定要繼續嗎？`)) return;
+    if(!confirm(`目前已有 ${state.students.length} 位學生資料，匯入會再新增 25 筆，可能造成重複。確定要繼續嗎？`)) return;
   }else{
-    if(!confirm("確定要匯入班級名單（24 位學生）嗎？")) return;
+    if(!confirm("確定要匯入班級名單（25 位學生）嗎？")) return;
   }
   const rows = CLASS_ROSTER.map(r => ({
     seat:r.seat, name:r.name, gender:r.gender,
@@ -874,7 +991,7 @@ document.getElementById("importRosterBtn").addEventListener("click", async ()=>{
     rows.forEach(row => state.students.push({id:"s"+Date.now()+Math.random(), ...row}));
     renderDashboard(); renderStudents(); renderExpenses();
   }
-  alert("已匯入 24 位學生名單！");
+  alert("已匯入 25 位學生名單！");
 });
 document.getElementById("saveStudentBtn").addEventListener("click", async ()=>{
   const data = {
@@ -938,11 +1055,12 @@ function renderExpenses(){
     }
     return `
       <div class="expense-card expense">
-        <div class="thumb" style="${e.photo? `background-image:url(${e.photo})`:""}">${e.photo? "":"無照片"}</div>
         <div class="info">
-          <div class="top"><span class="item">${e.item}</span><span class="amt">-${money(e.amount)}</span></div>
-          <div class="meta">${e.date}・${e.category}${e.note? "・"+e.note:""}</div>
+          <div class="top"><span class="item">${esc(e.item)}</span><span class="amt">-${money(e.amount)}</span></div>
+          <div class="meta">${esc(e.date)}・${esc(e.category)}</div>
+          ${e.note ? `<div class="note">${esc(e.note)}</div>` : ""}
         </div>
+        ${attHtml(e)}
       </div>`;
   }).join("") || `<p style="font-size:13px;color:var(--pencil-soft);">尚無記帳紀錄</p>`;
 
@@ -961,50 +1079,88 @@ document.getElementById("addExpenseBtn").addEventListener("click", ()=>{
   document.getElementById("e_date").value = new Date().toISOString().slice(0,10);
   document.getElementById("e_category").value = "教學用品";
   document.getElementById("e_note").value = "";
-  document.getElementById("e_photo").value = "";
-  const prev = document.getElementById("e_photoPreview");
-  prev.style.display = "none"; prev.src = "";
+  clearPending();
   document.getElementById("expenseDialog").showModal();
 });
 
+/* ---------- 支出附件：可多選、可分次加入、可單獨移除 ---------- */
+let pendingFiles = [];
+function clearPending(){
+  pendingFiles.forEach(p=>URL.revokeObjectURL(p.url));
+  pendingFiles = [];
+  document.getElementById("e_photo").value = "";
+  renderPending();
+}
+function renderPending(){
+  document.getElementById("e_previews").innerHTML = pendingFiles.map((p,i)=>`
+    <div class="pv">
+      ${p.isPdf ? `<div class="pv-file">📄<span>${esc(p.file.name)}</span></div>` : `<img src="${p.url}" alt="">`}
+      <button type="button" class="pv-x" data-i="${i}" aria-label="移除">✕</button>
+    </div>`).join("");
+  document.getElementById("e_photoCount").textContent =
+    pendingFiles.length ? `已選 ${pendingFiles.length} 個檔案（可再按上方按鈕繼續加入）` : "可一次選多個，也可分次加入";
+}
 document.getElementById("e_photo").addEventListener("change", (ev)=>{
-  const file = ev.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = ()=>{
-    const prev = document.getElementById("e_photoPreview");
-    prev.src = reader.result; prev.style.display = "block";
-  };
-  reader.readAsDataURL(file);
+  Array.from(ev.target.files).forEach(file=>{
+    const isPdf = file.type==="application/pdf" || /\.pdf$/i.test(file.name);
+    pendingFiles.push({file, isPdf, url: URL.createObjectURL(file)});
+  });
+  ev.target.value = "";
+  renderPending();
+});
+document.getElementById("e_previews").addEventListener("click", (ev)=>{
+  const x = ev.target.closest(".pv-x");
+  if(!x) return;
+  const [removed] = pendingFiles.splice(Number(x.dataset.i), 1);
+  if(removed) URL.revokeObjectURL(removed.url);
+  renderPending();
+});
+const fileToDataURL = file => new Promise((res, rej)=>{
+  const r = new FileReader();
+  r.onload = ()=>res(r.result); r.onerror = rej;
+  r.readAsDataURL(file);
 });
 
 document.getElementById("saveExpenseBtn").addEventListener("click", async ()=>{
   const item = document.getElementById("e_item").value.trim();
   const amount = Number(document.getElementById("e_amount").value||0);
   if(!item || !amount){ alert("請輸入項目名稱與金額"); return; }
-  const photoPreview = document.getElementById("e_photoPreview");
-  const data = {
+  const base = {
     item, amount,
     date: document.getElementById("e_date").value,
     category: document.getElementById("e_category").value,
-    note: document.getElementById("e_note").value.trim(),
-    photo: photoPreview.style.display==="block" ? photoPreview.src : null,
+    note: document.getElementById("e_note").value.trim(),   // 保留換行
   };
 
-  if(firebaseReady){
-    const file = document.getElementById("e_photo").files[0];
-    let photoURL = null;
-    if(file){
-      const r = stApi.ref(storageRef, `receipts/${Date.now()}_${file.name}`);
-      await stApi.uploadBytes(r, file);
-      photoURL = await stApi.getDownloadURL(r);
+  const btn = document.getElementById("saveExpenseBtn");
+  const oldText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = pendingFiles.length ? "上傳中…" : "儲存中…";
+  try{
+    if(firebaseReady){
+      const stamp = Date.now();
+      const photos = await Promise.all(pendingFiles.map(async (p,i)=>{
+        const r = stApi.ref(storageRef, `receipts/${stamp}_${i}_${p.file.name}`);
+        await stApi.uploadBytes(r, p.file);
+        return { url: await stApi.getDownloadURL(r), name: p.file.name, type: p.file.type };
+      }));
+      await fsApi.addDoc(fsApi.collection(db,"expenses"), {...base, photos});
+    }else{
+      const photos = await Promise.all(pendingFiles.map(async p=>({
+        url: await fileToDataURL(p.file), name: p.file.name, type: p.file.type
+      })));
+      state.expenses.push({id:"e"+Date.now(), ...base, photos});
+      renderDashboard(); renderExpenses();
     }
-    await fsApi.addDoc(fsApi.collection(db,"expenses"), {...data, photo: photoURL});
-  }else{
-    state.expenses.push({id:"e"+Date.now(), ...data});
-    renderDashboard(); renderExpenses();
+    clearPending();
+    document.getElementById("expenseDialog").close();
+  }catch(err){
+    console.error(err);
+    alert("儲存失敗，請檢查網路後再試一次。");
+  }finally{
+    btn.disabled = false;
+    btn.textContent = oldText;
   }
-  document.getElementById("expenseDialog").close();
 });
 
 /* ---------- 期末報告 ---------- */
