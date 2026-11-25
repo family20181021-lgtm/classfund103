@@ -487,6 +487,13 @@
   .lb-nav.prev{left:10px;} .lb-nav.next{right:10px;}
   .lightbox.single .lb-nav{display:none;}
   .lb-count{position:fixed;bottom:14px;left:0;right:0;text-align:center;color:var(--chalk);font-size:14px;z-index:1001;pointer-events:none;}
+
+  .expense-card.income::before{background:var(--b);}
+  .expense-card .top .right{display:flex;align-items:center;gap:10px;flex:none;}
+  .btn.danger{background:var(--r-soft);color:var(--r);}
+  .modal-actions .spacer{flex:1;}
+  .pv.old{border-style:dashed;}
+  .member-hint{font-size:12px;color:var(--pencil-soft);margin-top:8px;}
 </style>
 </head>
 <body>
@@ -594,7 +601,7 @@
     </div>
     <div class="toolbar">
       <span class="summary" id="expenseSummary">共 0 筆支出</span>
-      <button class="btn" id="addExpenseBtn">＋ 新增支出</button>
+      <button class="btn" id="addExpenseBtn">＋ 新增</button>
     </div>
     <div id="expenseList"></div>
   </section>
@@ -663,8 +670,15 @@
 
 <!-- ============ 支出 Modal ============ -->
 <dialog id="expenseDialog">
-  <div class="modal-head"><span>新增支出</span><button data-close>✕</button></div>
+  <div class="modal-head"><span id="entryDialogTitle">新增記帳</span><button data-close>✕</button></div>
   <div class="modal-body">
+    <div class="field">
+      <label>類型</label>
+      <select id="e_type">
+        <option value="expense">支出</option>
+        <option value="income">收入（班費以外的收入）</option>
+      </select>
+    </div>
     <div class="field"><label>項目名稱</label><input type="text" id="e_item" placeholder="例：園遊會材料"></div>
     <div class="field-row">
       <div class="field"><label>金額</label><input type="number" id="e_amount"></div>
@@ -672,13 +686,7 @@
     </div>
     <div class="field">
       <label>類別</label>
-      <select id="e_category">
-        <option>教學用品</option>
-        <option>班級活動</option>
-        <option>獎勵品</option>
-        <option>文具耗材</option>
-        <option>其他</option>
-      </select>
+      <select id="e_category"></select>
     </div>
     <div class="field"><label>備註（可按 Enter 換行）</label><textarea id="e_note" rows="3" placeholder="選填，可多行"></textarea></div>
     <div class="field">
@@ -688,6 +696,8 @@
       <div class="pv-grid" id="e_previews"></div>
     </div>
     <div class="modal-actions">
+      <button class="btn danger" id="deleteEntryBtn" style="display:none;">刪除</button>
+      <span class="spacer"></span>
       <button class="btn secondary" data-close>取消</button>
       <button class="btn" id="saveExpenseBtn">儲存</button>
     </div>
@@ -790,9 +800,11 @@ let state = {
   settings: { dueAmount: 500 },
   students: JSON.parse(JSON.stringify(DEMO_STUDENTS)),
   expenses: JSON.parse(JSON.stringify(DEMO_EXPENSES)),
+  incomes: [],
 };
 
 const money = n => "$" + Number(n||0).toLocaleString("zh-TW");
+const calcTotalIncome = () => state.students.reduce((s,x)=>s+Number(x.paid||0),0) + (state.incomes||[]).reduce((s,x)=>s+Number(x.amount||0),0);
 const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 /* ---------- 附件：相容舊資料（單張 photo）與新資料（photos 陣列） ---------- */
@@ -849,7 +861,7 @@ document.addEventListener("keydown", ev=>{
 document.addEventListener("click", ev=>{
   const b = ev.target.closest("button.att");
   if(!b) return;
-  const e = state.expenses.find(x=>x.id===b.dataset.eid);
+  const e = [...state.expenses, ...(state.incomes||[])].find(x=>x.id===b.dataset.eid);
   if(!e) return;
   openLightbox(getAttachments(e).filter(a=>!a.isPdf), Number(b.dataset.idx));
 });
@@ -868,7 +880,7 @@ document.querySelectorAll("nav.tabs button, nav.bottombar button").forEach(b=>{
 
 /* ---------- 總覽 ---------- */
 function renderDashboard(){
-  const totalIncome = state.students.reduce((s,x)=>s+Number(x.paid||0),0);
+  const totalIncome = calcTotalIncome();
   const totalExpense = state.expenses.reduce((s,x)=>s+Number(x.amount||0),0);
   const balance = totalIncome - totalExpense;
 
@@ -1020,7 +1032,7 @@ document.getElementById("saveStudentBtn").addEventListener("click", async ()=>{
   document.getElementById("studentDialog").close();
 });
 
-/* ---------- 記帳（收入自動帶入繳費紀錄，支出手動新增） ---------- */
+/* ---------- 記帳（繳費自動帶入收入；其他收入、支出可新增／編輯／刪除） ---------- */
 function renderExpenses(){
   const list = document.getElementById("expenseList");
 
@@ -1030,18 +1042,19 @@ function renderExpenses(){
     const key = s.paidDate || "";
     (groupMap[key] = groupMap[key]||[]).push(s);
   });
-  const incomeGroups = Object.entries(groupMap).map(([date,members])=>({
-    date, type:"income",
+  const feeGroups = Object.entries(groupMap).map(([date,members])=>({
+    date, type:"fee",
     count: members.length,
     amount: members.reduce((sum,s)=>sum+Number(s.paid),0),
     members: members.slice().sort((a,b)=>a.seat-b.seat),
   }));
 
+  const incomeItems = (state.incomes||[]).map(e=>({...e, type:"income"}));
   const expenseItems = state.expenses.map(e=>({...e, type:"expense"}));
-  const merged = [...incomeGroups, ...expenseItems].sort((a,b)=> (b.date||"").localeCompare(a.date||""));
+  const merged = [...feeGroups, ...incomeItems, ...expenseItems].sort((a,b)=> (b.date||"").localeCompare(a.date||""));
 
   list.innerHTML = merged.map(e=>{
-    if(e.type==="income"){
+    if(e.type==="fee"){
       return `
       <details class="income-group">
         <summary>
@@ -1050,13 +1063,21 @@ function renderExpenses(){
         </summary>
         <div class="members">
           ${e.members.map(m=>`<div class="member-row"><span>座號${m.seat}．${m.name}</span><span>${money(m.paid)}</span></div>`).join("")}
+          <div class="member-hint">這是「收費管理」的繳費紀錄，要修改請到收費管理。</div>
         </div>
       </details>`;
     }
+    const isInc = e.type==="income";
     return `
-      <div class="expense-card expense">
+      <div class="expense-card ${isInc?"income":"expense"}">
         <div class="info">
-          <div class="top"><span class="item">${esc(e.item)}</span><span class="amt">-${money(e.amount)}</span></div>
+          <div class="top">
+            <span class="item">${isInc?"💰 ":""}${esc(e.item)}</span>
+            <span class="right">
+              <span class="amt">${isInc?"+":"-"}${money(e.amount)}</span>
+              <button type="button" class="btn small edit-btn" data-kind="${e.type}" data-id="${esc(e.id)}">✎ 編輯</button>
+            </span>
+          </div>
           <div class="meta">${esc(e.date)}・${esc(e.category)}</div>
           ${e.note ? `<div class="note">${esc(e.note)}</div>` : ""}
         </div>
@@ -1064,26 +1085,57 @@ function renderExpenses(){
       </div>`;
   }).join("") || `<p style="font-size:13px;color:var(--pencil-soft);">尚無記帳紀錄</p>`;
 
-  document.getElementById("expenseSummary").textContent = `共 ${incomeGroups.length} 筆收入紀錄（${paidStudents.length} 人次）・${expenseItems.length} 筆支出`;
+  document.getElementById("expenseSummary").textContent =
+    `繳費收入 ${feeGroups.length} 筆（${paidStudents.length} 人次）・其他收入 ${incomeItems.length} 筆・支出 ${expenseItems.length} 筆`;
 
-  const incomeTotal = paidStudents.reduce((s,x)=>s+Number(x.paid||0),0);
+  const incomeTotal = calcTotalIncome();
   const expenseTotal = expenseItems.reduce((s,x)=>s+Number(x.amount||0),0);
   document.getElementById("ledgerIncomeTotal").textContent = money(incomeTotal);
   document.getElementById("ledgerExpenseTotal").textContent = money(expenseTotal);
   document.getElementById("ledgerBalance").textContent = money(incomeTotal-expenseTotal);
 }
 
-document.getElementById("addExpenseBtn").addEventListener("click", ()=>{
-  document.getElementById("e_item").value = "";
-  document.getElementById("e_amount").value = "";
-  document.getElementById("e_date").value = new Date().toISOString().slice(0,10);
-  document.getElementById("e_category").value = "教學用品";
-  document.getElementById("e_note").value = "";
-  clearPending();
-  document.getElementById("expenseDialog").showModal();
+/* ---------- 新增／編輯 記帳 ---------- */
+const EXPENSE_CATS = ["教學用品","班級活動","獎勵品","文具耗材","其他"];
+const INCOME_CATS = ["捐款／贊助","利息","其他收入"];
+let editing = null;   // 編輯中：{kind, id, kept:[已存在的附件]}；新增時為 null
+
+function fillCategories(kind, selected){
+  const cats = kind==="income" ? INCOME_CATS : EXPENSE_CATS;
+  const sel = document.getElementById("e_category");
+  sel.innerHTML = cats.map(c=>`<option>${esc(c)}</option>`).join("");
+  if(selected && !cats.includes(selected)) sel.insertAdjacentHTML("beforeend", `<option>${esc(selected)}</option>`);
+  sel.value = selected || cats[0];
+}
+document.getElementById("e_type").addEventListener("change", (ev)=>{
+  fillCategories(ev.target.value);
+  document.getElementById("e_item").placeholder = ev.target.value==="income" ? "例：家長捐款" : "例：園遊會材料";
 });
 
-/* ---------- 支出附件：可多選、可分次加入、可單獨移除 ---------- */
+function openEntryDialog(kind, id){
+  const rec = id ? (kind==="income" ? state.incomes : state.expenses).find(x=>x.id===id) : null;
+  editing = rec ? {kind, id, kept: getAttachments(rec).map(a=>({url:a.url, name:a.name||"", type:a.type||(a.isPdf?"application/pdf":"")}))} : null;
+
+  const typeSel = document.getElementById("e_type");
+  typeSel.value = kind;
+  typeSel.disabled = !!rec;                 // 編輯時不能改類型
+  fillCategories(kind, rec ? rec.category : null);
+  document.getElementById("entryDialogTitle").textContent = rec ? "編輯記帳" : "新增記帳";
+  document.getElementById("deleteEntryBtn").style.display = rec ? "" : "none";
+  document.getElementById("e_item").value = rec ? rec.item : "";
+  document.getElementById("e_amount").value = rec ? rec.amount : "";
+  document.getElementById("e_date").value = rec ? (rec.date||"") : new Date().toISOString().slice(0,10);
+  document.getElementById("e_note").value = rec ? (rec.note||"") : "";
+  clearPending();
+  document.getElementById("expenseDialog").showModal();
+}
+document.getElementById("addExpenseBtn").addEventListener("click", ()=>openEntryDialog("expense", null));
+document.getElementById("expenseList").addEventListener("click", (ev)=>{
+  const b = ev.target.closest(".edit-btn");
+  if(b) openEntryDialog(b.dataset.kind, b.dataset.id);
+});
+
+/* ---------- 附件：可多選、可分次加入、可單獨移除（編輯時也能移除舊附件） ---------- */
 let pendingFiles = [];
 function clearPending(){
   pendingFiles.forEach(p=>URL.revokeObjectURL(p.url));
@@ -1091,14 +1143,20 @@ function clearPending(){
   document.getElementById("e_photo").value = "";
   renderPending();
 }
+function pvInner(isPdf, name, url){
+  return isPdf ? `<div class="pv-file">📄<span>${esc(name||"PDF")}</span></div>` : `<img src="${esc(url)}" alt="">`;
+}
 function renderPending(){
-  document.getElementById("e_previews").innerHTML = pendingFiles.map((p,i)=>`
-    <div class="pv">
-      ${p.isPdf ? `<div class="pv-file">📄<span>${esc(p.file.name)}</span></div>` : `<img src="${p.url}" alt="">`}
-      <button type="button" class="pv-x" data-i="${i}" aria-label="移除">✕</button>
-    </div>`).join("");
+  const kept = editing ? editing.kept : [];
+  const isPdfA = a => /pdf/i.test(a.type||"") || /\.pdf$/i.test(a.name||"") || /\.pdf(\?|$)/i.test(a.url) || a.url.startsWith("data:application/pdf");
+  document.getElementById("e_previews").innerHTML =
+    kept.map((a,i)=>`
+      <div class="pv old">${pvInner(isPdfA(a), a.name, a.url)}<button type="button" class="pv-x" data-k="${i}" aria-label="移除">✕</button></div>`).join("") +
+    pendingFiles.map((p,i)=>`
+      <div class="pv">${pvInner(p.isPdf, p.file.name, p.url)}<button type="button" class="pv-x" data-i="${i}" aria-label="移除">✕</button></div>`).join("");
+  const total = kept.length + pendingFiles.length;
   document.getElementById("e_photoCount").textContent =
-    pendingFiles.length ? `已選 ${pendingFiles.length} 個檔案（可再按上方按鈕繼續加入）` : "可一次選多個，也可分次加入";
+    total ? `共 ${total} 個附件（虛線框為原有附件；可再按上方按鈕繼續加入）` : "可一次選多個，也可分次加入";
 }
 document.getElementById("e_photo").addEventListener("change", (ev)=>{
   Array.from(ev.target.files).forEach(file=>{
@@ -1111,8 +1169,12 @@ document.getElementById("e_photo").addEventListener("change", (ev)=>{
 document.getElementById("e_previews").addEventListener("click", (ev)=>{
   const x = ev.target.closest(".pv-x");
   if(!x) return;
-  const [removed] = pendingFiles.splice(Number(x.dataset.i), 1);
-  if(removed) URL.revokeObjectURL(removed.url);
+  if(x.dataset.k !== undefined){
+    editing.kept.splice(Number(x.dataset.k), 1);
+  }else{
+    const [removed] = pendingFiles.splice(Number(x.dataset.i), 1);
+    if(removed) URL.revokeObjectURL(removed.url);
+  }
   renderPending();
 });
 const fileToDataURL = file => new Promise((res, rej)=>{
@@ -1122,6 +1184,8 @@ const fileToDataURL = file => new Promise((res, rej)=>{
 });
 
 document.getElementById("saveExpenseBtn").addEventListener("click", async ()=>{
+  const kind = editing ? editing.kind : document.getElementById("e_type").value;
+  const colName = kind==="income" ? "incomes" : "expenses";
   const item = document.getElementById("e_item").value.trim();
   const amount = Number(document.getElementById("e_amount").value||0);
   if(!item || !amount){ alert("請輸入項目名稱與金額"); return; }
@@ -1137,22 +1201,35 @@ document.getElementById("saveExpenseBtn").addEventListener("click", async ()=>{
   btn.disabled = true;
   btn.textContent = pendingFiles.length ? "上傳中…" : "儲存中…";
   try{
+    const kept = editing ? editing.kept : [];
     if(firebaseReady){
       const stamp = Date.now();
-      const photos = await Promise.all(pendingFiles.map(async (p,i)=>{
+      const added = await Promise.all(pendingFiles.map(async (p,i)=>{
         const r = stApi.ref(storageRef, `receipts/${stamp}_${i}_${p.file.name}`);
         await stApi.uploadBytes(r, p.file);
         return { url: await stApi.getDownloadURL(r), name: p.file.name, type: p.file.type };
       }));
-      await fsApi.addDoc(fsApi.collection(db,"expenses"), {...base, photos});
+      const photos = [...kept, ...added];
+      if(editing){
+        await fsApi.updateDoc(fsApi.doc(db, colName, editing.id), {...base, photos, photo:null});
+      }else{
+        await fsApi.addDoc(fsApi.collection(db, colName), {...base, photos});
+      }
     }else{
-      const photos = await Promise.all(pendingFiles.map(async p=>({
+      const added = await Promise.all(pendingFiles.map(async p=>({
         url: await fileToDataURL(p.file), name: p.file.name, type: p.file.type
       })));
-      state.expenses.push({id:"e"+Date.now(), ...base, photos});
+      const photos = [...kept, ...added];
+      const arr = kind==="income" ? state.incomes : state.expenses;
+      if(editing){
+        Object.assign(arr.find(x=>x.id===editing.id), {...base, photos, photo:null});
+      }else{
+        arr.push({id:(kind==="income"?"i":"e")+Date.now(), ...base, photos});
+      }
       renderDashboard(); renderExpenses();
     }
     clearPending();
+    editing = null;
     document.getElementById("expenseDialog").close();
   }catch(err){
     console.error(err);
@@ -1163,9 +1240,30 @@ document.getElementById("saveExpenseBtn").addEventListener("click", async ()=>{
   }
 });
 
+document.getElementById("deleteEntryBtn").addEventListener("click", async ()=>{
+  if(!editing) return;
+  if(!confirm("確定要刪除這筆記錄嗎？刪除後無法復原。")) return;
+  const colName = editing.kind==="income" ? "incomes" : "expenses";
+  try{
+    if(firebaseReady){
+      await fsApi.deleteDoc(fsApi.doc(db, colName, editing.id));
+    }else{
+      const key = editing.kind==="income" ? "incomes" : "expenses";
+      state[key] = state[key].filter(x=>x.id!==editing.id);
+      renderDashboard(); renderExpenses();
+    }
+    clearPending();
+    editing = null;
+    document.getElementById("expenseDialog").close();
+  }catch(err){
+    console.error(err);
+    alert("刪除失敗，請檢查網路後再試一次。");
+  }
+});
+
 /* ---------- 期末報告 ---------- */
 function renderReport(){
-  const totalIncome = state.students.reduce((s,x)=>s+Number(x.paid||0),0);
+  const totalIncome = calcTotalIncome();
   const totalExpense = state.expenses.reduce((s,x)=>s+Number(x.amount||0),0);
   document.getElementById("reportIncome").textContent = money(totalIncome);
   document.getElementById("reportExpense").textContent = money(totalExpense);
@@ -1216,7 +1314,7 @@ document.querySelectorAll("dialog [data-close]").forEach(b=>{
 (async function init(){
   firebaseReady = await tryInitFirebase();
   document.getElementById("demoBanner").style.display = firebaseReady? "none":"block";
-  if(firebaseReady){ state.students = []; state.expenses = []; }
+  if(firebaseReady){ state.students = []; state.expenses = []; state.incomes = []; }
 
   if(firebaseReady){
     fsApi.onSnapshot(fsApi.doc(db,"settings","current"), snap=>{
@@ -1230,6 +1328,10 @@ document.querySelectorAll("dialog [data-close]").forEach(b=>{
     });
     fsApi.onSnapshot(fsApi.collection(db,"expenses"), snap=>{
       state.expenses = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      renderDashboard(); renderExpenses();
+    });
+    fsApi.onSnapshot(fsApi.collection(db,"incomes"), snap=>{
+      state.incomes = snap.docs.map(d=>({id:d.id, ...d.data()}));
       renderDashboard(); renderExpenses();
     });
   }
