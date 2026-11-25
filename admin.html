@@ -494,6 +494,19 @@
   .modal-actions .spacer{flex:1;}
   .pv.old{border-style:dashed;}
   .member-hint{font-size:12px;color:var(--pencil-soft);margin-top:8px;}
+
+  .sem-group{border:3px solid var(--pencil);border-radius:16px;background:var(--paper-card);padding:12px 14px;margin-bottom:14px;}
+  .sem-group > summary{
+    cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+    font-family:var(--font-display);font-weight:700;font-size:17px;
+  }
+  .sem-group > summary::-webkit-details-marker{display:none;}
+  .sem-group > summary::before{content:"▸ ";color:var(--o);}
+  .sem-group[open] > summary::before{content:"▾ ";}
+  .sem-group > summary > span:first-child{flex:1;}
+  .sem-sum{font-size:14px;color:var(--pencil-soft);}
+  .sem-body{margin-top:10px;padding-top:10px;border-top:2px dashed var(--pencil-soft);}
+  .paid-toggle{width:22px;height:22px;accent-color:var(--g);cursor:pointer;}
 </style>
 </head>
 <body>
@@ -579,16 +592,11 @@
       <div style="font-size:13px;color:var(--pencil-soft);">前台網址：<code id="frontUrlHint">index.html</code>（部署後改成正式網址）</div>
     </div>
     <div class="toolbar">
-      <span class="summary" id="studentSummary">共 0 位學生</span>
-      <button class="btn secondary" id="importRosterBtn">📋 匯入班級名單（25人）</button>
+      <span class="summary" id="studentSummary"></span>
+      <button class="btn secondary" id="importRosterBtn">📋 新增學期（匯入同一份名單）</button>
       <button class="btn" id="addStudentBtn">＋ 新增學生</button>
     </div>
-    <table>
-      <thead>
-        <tr><th>座號</th><th>姓名</th><th>性別</th><th class="num">應繳</th><th class="num">已繳</th><th>繳費日期</th><th>狀態</th></tr>
-      </thead>
-      <tbody id="studentTableBody"></tbody>
-    </table>
+    <div id="semesterList"></div>
   </section>
 
   <!-- ============ 記帳 ============ -->
@@ -644,6 +652,7 @@
 <dialog id="studentDialog">
   <div class="modal-head"><span id="studentDialogTitle">新增學生</span><button data-close>✕</button></div>
   <div class="modal-body">
+    <div class="field"><label>學期</label><select id="f_semester"></select></div>
     <div class="field-row">
       <div class="field"><label>座號</label><input type="number" id="f_seat"></div>
       <div class="field" style="flex:2;"><label>姓名</label><input type="text" id="f_name"></div>
@@ -676,7 +685,7 @@
       <label>類型</label>
       <select id="e_type">
         <option value="expense">支出</option>
-        <option value="income">收入（班費以外的收入）</option>
+        <option value="income">收入</option>
       </select>
     </div>
     <div class="field"><label>項目名稱</label><input type="text" id="e_item" placeholder="例：園遊會材料"></div>
@@ -804,6 +813,21 @@ let state = {
 };
 
 const money = n => "$" + Number(n||0).toLocaleString("zh-TW");
+/* ---------- 學期 ---------- */
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+const DEFAULT_SEM = "一年級上學期";
+const semOf = s => s.semester || DEFAULT_SEM;           // 舊資料沒有 semester 欄位 → 視為一年級上學期
+function semList(){
+  const names = [...(state.settings.semesters||[])];
+  state.students.forEach(s=>{ const n = semOf(s); if(!names.includes(n)) names.push(n); });
+  if(!names.length) names.push(DEFAULT_SEM);
+  return names;                                          // 由舊到新
+}
+function curSem(){
+  const list = semList();
+  const c = state.settings.currentSemester;
+  return (c && list.includes(c)) ? c : list[list.length-1];
+}
 const calcTotalIncome = () => state.students.reduce((s,x)=>s+Number(x.paid||0),0) + (state.incomes||[]).reduce((s,x)=>s+Number(x.amount||0),0);
 const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
@@ -889,8 +913,9 @@ function renderDashboard(){
   document.getElementById("statExpense").textContent = money(totalExpense);
   document.getElementById("statBalance").textContent = money(balance);
 
-  const paidCount = state.students.filter(s=>Number(s.paid)>=Number(s.due) && Number(s.due)>0).length;
-  const total = state.students.length;
+  const curStudents = state.students.filter(s=>semOf(s)===curSem());
+  const paidCount = curStudents.filter(s=>Number(s.paid)>=Number(s.due) && Number(s.due)>0).length;
+  const total = curStudents.length;
   const pct = total? Math.round(paidCount/total*100):0;
   document.getElementById("progressText").textContent = `${paidCount} / ${total} 位家長已繳清`;
   document.getElementById("progressPct").textContent = pct+"%";
@@ -918,36 +943,103 @@ function statusOf(s){
   if(Number(s.paid) > 0) return {cls:"partial", label:"部分"};
   return {cls:"unpaid", label:"未繳"};
 }
-function renderStudents(){
-  const tbody = document.getElementById("studentTableBody");
-  const sorted = [...state.students].sort((a,b)=>a.seat-b.seat);
-  tbody.innerHTML = sorted.map(s=>{
-    const st = statusOf(s);
-    const genderDot = s.gender==="F" ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--p);margin-right:5px;"></span>女` : `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--b);margin-right:5px;"></span>男`;
-    return `
-    <tr class="student-row" data-id="${s.id}">
-      <td data-label="座號">${s.seat}</td>
-      <td data-label="姓名">${s.name}</td>
+const isPaid = s => Number(s.paid) >= Number(s.due) && Number(s.due) > 0;
+const semOpen = {};   // 使用者手動展開／收合的學期；沒操作過的，目前學期預設展開
+
+function studentRowHtml(s){
+  const st = statusOf(s);
+  const genderDot = s.gender==="F" ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--p);margin-right:5px;"></span>女` : `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--b);margin-right:5px;"></span>男`;
+  return `
+    <tr class="student-row" data-id="${esc(s.id)}">
+      <td data-label="座號">${esc(s.seat)}</td>
+      <td data-label="姓名">${esc(s.name)}</td>
       <td data-label="性別">${genderDot}</td>
       <td data-label="應繳" class="num">${money(s.due)}</td>
       <td data-label="已繳" class="num">${money(s.paid)}</td>
-      <td data-label="繳費日期">${s.paidDate||"—"}</td>
+      <td data-label="繳費日期">${esc(s.paidDate)||"—"}</td>
       <td data-label="狀態"><span class="tag ${st.cls}">${st.label}</span></td>
+      <td data-label="已繳費"><input type="checkbox" class="paid-toggle" data-id="${esc(s.id)}" ${isPaid(s)?"checked":""} aria-label="已繳費"></td>
     </tr>`;
-  }).join("");
-  document.getElementById("studentSummary").textContent = `共 ${state.students.length} 位學生`;
-  tbody.querySelectorAll("tr").forEach(tr=>{
-    tr.addEventListener("click", ()=>openStudentDialog(tr.dataset.id));
-  });
 }
+function renderStudents(){
+  const box = document.getElementById("semesterList");
+  const cur = curSem();
+  box.innerHTML = [...semList()].reverse().map(name=>{
+    const rows = state.students.filter(s=>semOf(s)===name).sort((a,b)=>a.seat-b.seat);
+    const paidN = rows.filter(isPaid).length;
+    const sum = rows.reduce((t,s)=>t+Number(s.paid||0),0);
+    const isCur = name===cur;
+    const open = (name in semOpen) ? semOpen[name] : isCur;
+    return `
+    <details class="sem-group" data-sem="${esc(name)}" ${open?"open":""}>
+      <summary>
+        <span>📚 ${esc(name)} ${isCur?'<span class="tag paid">目前學期</span>':""}</span>
+        <span class="sem-sum">已繳 ${paidN} / ${rows.length} 位・${money(sum)}</span>
+      </summary>
+      <div class="sem-body">
+        ${isCur ? "" : `<p style="margin:0 0 6px;"><button type="button" class="btn small" data-act="setCurrent" data-sem="${esc(name)}">設為目前學期</button></p>`}
+        <table>
+          <thead><tr><th>座號</th><th>姓名</th><th>性別</th><th class="num">應繳</th><th class="num">已繳</th><th>繳費日期</th><th>狀態</th><th>已繳費</th></tr></thead>
+          <tbody>${rows.map(studentRowHtml).join("") || `<tr><td colspan="8" style="padding:10px;color:var(--pencil-soft);">此學期尚無學生</td></tr>`}</tbody>
+        </table>
+      </div>
+    </details>`;
+  }).join("");
+  document.getElementById("studentSummary").textContent = `目前學期：${cur}`;
+}
+
+async function saveSettings(patch){
+  Object.assign(state.settings, patch);
+  try{
+    if(firebaseReady) await fsApi.setDoc(fsApi.doc(db,"settings","current"), patch, {merge:true});
+  }catch(err){ console.error(err); alert("儲存設定失敗，請檢查網路後再試一次。"); }
+  renderDashboard(); renderStudents();
+}
+
+async function setPaid(id, checked){
+  const s = state.students.find(x=>x.id===id);
+  if(!s) return;
+  const data = checked ? {paid:Number(s.due||0), paidDate:todayStr()} : {paid:0, paidDate:""};
+  try{
+    if(firebaseReady){
+      await fsApi.updateDoc(fsApi.doc(db,"students",id), data);
+    }else{
+      Object.assign(s, data);
+      renderDashboard(); renderStudents(); renderExpenses();
+    }
+  }catch(err){
+    console.error(err); alert("更新失敗，請檢查網路後再試一次。"); renderStudents();
+  }
+}
+
+(function bindSemesterList(){
+  const box = document.getElementById("semesterList");
+  box.addEventListener("click", ev=>{
+    const sum = ev.target.closest("summary");
+    if(sum){ const d = sum.parentElement; semOpen[d.dataset.sem] = !d.open; return; }
+    const act = ev.target.closest('[data-act="setCurrent"]');
+    if(act){ saveSettings({currentSemester: act.dataset.sem}); return; }
+    if(ev.target.closest(".paid-toggle")) return;
+    const tr = ev.target.closest("tr.student-row");
+    if(tr) openStudentDialog(tr.dataset.id);
+  });
+  box.addEventListener("change", ev=>{
+    const c = ev.target.closest(".paid-toggle");
+    if(c) setPaid(c.dataset.id, c.checked);
+  });
+})();
 
 let editingStudentId = null;
 function openStudentDialog(id){
   editingStudentId = id || null;
   const dlg = document.getElementById("studentDialog");
   const s = id ? state.students.find(x=>x.id===id) : null;
+  const semSel = document.getElementById("f_semester");
+  const sem = s ? semOf(s) : curSem();
+  semSel.innerHTML = semList().map(n=>`<option>${esc(n)}</option>`).join("");
+  semSel.value = sem;
   document.getElementById("studentDialogTitle").textContent = s? "編輯學生" : "新增學生";
-  document.getElementById("f_seat").value = s? s.seat : (state.students.length+1);
+  document.getElementById("f_seat").value = s? s.seat : (state.students.filter(x=>semOf(x)===sem).length+1);
   document.getElementById("f_name").value = s? s.name : "";
   document.getElementById("f_gender").value = s? (s.gender||"M") : "M";
   document.getElementById("f_due").value = s? s.due : state.settings.dueAmount;
@@ -986,24 +1078,49 @@ const CLASS_ROSTER = [
   {seat:30, name:"陳圓",  gender:"F"},
   {seat:31, name:"宋昀臻", gender:"F"},
 ];
+function suggestNextSem(name){
+  const m = name.match(/^(.)年級(上|下)學期$/);
+  if(!m) return "";
+  if(m[2]==="上") return `${m[1]}年級下學期`;
+  const grades = "一二三四五六";
+  const i = grades.indexOf(m[1]);
+  return (i>=0 && i<5) ? `${grades[i+1]}年級上學期` : "";
+}
 document.getElementById("importRosterBtn").addEventListener("click", async ()=>{
-  if(state.students.length){
-    if(!confirm(`目前已有 ${state.students.length} 位學生資料，匯入會再新增 25 筆，可能造成重複。確定要繼續嗎？`)) return;
-  }else{
-    if(!confirm("確定要匯入班級名單（25 位學生）嗎？")) return;
-  }
-  const rows = CLASS_ROSTER.map(r => ({
+  const list = semList();
+  const last = list[list.length-1];
+  const hasAny = state.students.length > 0;
+  const input = prompt(
+    `新學期名稱？\n會把「${hasAny ? last : "班級名單"}」的同一份名單帶入，全部先設為未繳（應繳 ${money(state.settings.dueAmount)}）。`,
+    hasAny ? suggestNextSem(last) : DEFAULT_SEM);
+  if(input === null) return;
+  const name = input.trim();
+  if(!name){ alert("請輸入學期名稱"); return; }
+  if(list.includes(name)){ alert(`「${name}」已經存在了。`); return; }
+
+  const source = hasAny
+    ? state.students.filter(s=>semOf(s)===last).sort((a,b)=>a.seat-b.seat).map(s=>({seat:s.seat, name:s.name, gender:s.gender||"M"}))
+    : CLASS_ROSTER;
+  const rows = source.map(r => ({
     seat:r.seat, name:r.name, gender:r.gender,
-    due:state.settings.dueAmount, paid:0, paidDate:"", note:""
+    due:state.settings.dueAmount, paid:0, paidDate:"", note:"", semester:name
   }));
-  if(firebaseReady){
-    const col = fsApi.collection(db,"students");
-    for(const row of rows){ await fsApi.addDoc(col, row); }
-  }else{
-    rows.forEach(row => state.students.push({id:"s"+Date.now()+Math.random(), ...row}));
-    renderDashboard(); renderStudents(); renderExpenses();
+  if(!rows.length){ alert("找不到可匯入的名單。"); return; }
+
+  try{
+    if(firebaseReady){
+      const col = fsApi.collection(db,"students");
+      await Promise.all(rows.map(row => fsApi.addDoc(col, row)));
+    }else{
+      rows.forEach(row => state.students.push({id:"s"+Date.now()+Math.random(), ...row}));
+    }
+    await saveSettings({semesters:[...list, name], currentSemester:name});
+    renderExpenses();
+    alert(`已新增「${name}」，匯入 ${rows.length} 位學生。展開後勾選「已繳費」即可。`);
+  }catch(err){
+    console.error(err);
+    alert("匯入失敗，請檢查網路後再試一次。");
   }
-  alert("已匯入 25 位學生名單！");
 });
 document.getElementById("saveStudentBtn").addEventListener("click", async ()=>{
   const data = {
@@ -1014,6 +1131,7 @@ document.getElementById("saveStudentBtn").addEventListener("click", async ()=>{
     paid: Number(document.getElementById("f_paid").value||0),
     paidDate: document.getElementById("f_paidDate").value,
     note: document.getElementById("f_note").value.trim(),
+    semester: document.getElementById("f_semester").value,
   };
   if(!data.name){ alert("請輸入姓名"); return; }
 
@@ -1097,7 +1215,7 @@ function renderExpenses(){
 
 /* ---------- 新增／編輯 記帳 ---------- */
 const EXPENSE_CATS = ["教學用品","班級活動","獎勵品","文具耗材","其他"];
-const INCOME_CATS = ["捐款／贊助","利息","其他收入"];
+const INCOME_CATS = ["班費","捐款／贊助","利息","其他"];
 let editing = null;   // 編輯中：{kind, id, kept:[已存在的附件]}；新增時為 null
 
 function fillCategories(kind, selected){
@@ -1109,7 +1227,7 @@ function fillCategories(kind, selected){
 }
 document.getElementById("e_type").addEventListener("change", (ev)=>{
   fillCategories(ev.target.value);
-  document.getElementById("e_item").placeholder = ev.target.value==="income" ? "例：家長捐款" : "例：園遊會材料";
+  document.getElementById("e_item").placeholder = ev.target.value==="income" ? "例：班費、家長捐款" : "例：園遊會材料";
 });
 
 function openEntryDialog(kind, id){
@@ -1124,7 +1242,7 @@ function openEntryDialog(kind, id){
   document.getElementById("deleteEntryBtn").style.display = rec ? "" : "none";
   document.getElementById("e_item").value = rec ? rec.item : "";
   document.getElementById("e_amount").value = rec ? rec.amount : "";
-  document.getElementById("e_date").value = rec ? (rec.date||"") : new Date().toISOString().slice(0,10);
+  document.getElementById("e_date").value = rec ? (rec.date||"") : todayStr();
   document.getElementById("e_note").value = rec ? (rec.note||"") : "";
   clearPending();
   document.getElementById("expenseDialog").showModal();
@@ -1285,7 +1403,7 @@ function renderReport(){
     <tr><td>${e.date}</td><td>${e.item}</td><td>${e.category}</td><td class="num">${money(e.amount)}</td></tr>
   `).join("");
 
-  const unpaid = state.students.filter(s=> Number(s.paid) < Number(s.due));
+  const unpaid = state.students.filter(s=> semOf(s)===curSem() && Number(s.paid) < Number(s.due));
   const note = document.getElementById("unpaidNote");
   if(unpaid.length){
     note.style.display = "block";
